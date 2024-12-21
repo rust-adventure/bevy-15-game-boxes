@@ -26,7 +26,7 @@ use iyes_perf_ui::{
 };
 use iyes_progress::ProgressPlugin;
 use leafwing_input_manager::prelude::*;
-use std::f32::consts::{FRAC_PI_4, PI};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 fn main() {
     App::new()
@@ -88,8 +88,7 @@ fn main() {
             apply_controls
                 .in_set(TnuaUserControlsSystemSet),
         )
-        .add_systems(FixedUpdate, player_camera_system)
-        // .add_systems(sawds
+        // .add_systems(
         //     (
         //         track_fake_long_task
         //             .track_progress::<MyStates>(),
@@ -485,60 +484,25 @@ impl Default for PlayerCameraSettings {
         }
     }
 }
-fn player_camera_system(
-    mut query: Query<
-        &mut Transform,
-        (
-            With<Camera3d>,
-            With<PlayerCamera>,
-            Without<Player>,
-        ),
-    >,
-    player: Single<&GlobalTransform, With<Player>>,
-    time: Res<Time>,
-    player_camera_settings: Res<PlayerCameraSettings>,
-) {
-    for mut transform in &mut query {
-        let target = player
-            .translation()
-            .with_y(player_camera_settings.offset.y)
-            + player_camera_settings.offset.with_y(0.);
-        // transform.translation.smooth_nudge(
-        //     &target,
-        //     player_camera_settings.decay,
-        //     time.delta_secs(),
-        // );
-    }
-}
 
 fn control_camera(
-    mut camera: Single<
+    camera: Single<
         (&mut Transform, &CameraRig),
         (Changed<CameraRig>, Without<Player>),
     >,
-    accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    player: Single<&mut Transform, With<Player>>,
 ) {
     let (mut transform, rig) = camera.into_inner();
 
     let looking_direction = Quat::from_rotation_y(-rig.yaw)
-        * Quat::from_rotation_x(rig.pitch)
+        * Quat::from_rotation_x(
+            // TODO: .clamp is to prevent camera rotating through ground
+            // is not a permanent solution
+            rig.pitch.clamp(0., FRAC_PI_2),
+        )
         * Vec3::Z;
     transform.translation =
         rig.target - rig.distance * looking_direction;
     transform.look_at(rig.target, Dir3::Y);
-
-    // let x_axis = Quat::from_axis_angle(
-    //     camera.0.down().as_vec3(),
-    //     accumulated_mouse_motion.delta.x / 800.,
-    // );
-    // let y_axis = Quat::from_axis_angle(
-    //     camera.0.left().as_vec3(),
-    //     accumulated_mouse_motion.delta.y / 800.,
-    // );
-    // camera
-    //     .0
-    //     .rotate_around(player.translation, x_axis * y_axis);
 }
 
 /// Camera movement component.
