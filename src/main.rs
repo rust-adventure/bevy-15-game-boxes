@@ -75,9 +75,12 @@ fn main() {
                 // update_player_raycast,
                 raycast_player,
                 // debug_render_shapecasts,
-                control_camera,
-                handle_mouse,
-                target_camera_to_player,
+                (
+                    control_camera,
+                    handle_mouse,
+                    target_camera_to_player,
+                )
+                    .before(apply_controls),
             ),
         )
         .add_systems(
@@ -304,6 +307,7 @@ fn apply_controls(
         With<Player>,
     >,
     time: Res<Time>,
+    camera_rig: Single<&CameraRig>,
 ) {
     let mut direction = Vec3::ZERO;
 
@@ -349,6 +353,12 @@ fn apply_controls(
     //     ..Default::default()
     // });
     // } else {
+
+    let looking_direction =
+        Quat::from_rotation_y(-camera_rig.yaw)
+            * Quat::from_rotation_x(camera_rig.pitch)
+            * Vec3::Z;
+
     // Feed the basis every frame. Even if the player
     // doesn't move - just use `desired_velocity:
     // Vec3::ZERO`. `TnuaController` starts without a
@@ -359,8 +369,10 @@ fn apply_controls(
         // character will move.
         desired_velocity: direction.normalize_or_zero()
             * 10.0,
-        desired_forward: Dir3::new(direction.normalize())
-            .ok(),
+        desired_forward: Dir3::new(
+            looking_direction.normalize(),
+        )
+        .ok(),
         // The `float_height` must be greater (even if by
         // little) from the distance between the
         // character's center and the lowest point of its
@@ -491,11 +503,11 @@ fn player_camera_system(
             .translation()
             .with_y(player_camera_settings.offset.y)
             + player_camera_settings.offset.with_y(0.);
-        transform.translation.smooth_nudge(
-            &target,
-            player_camera_settings.decay,
-            time.delta_secs(),
-        );
+        // transform.translation.smooth_nudge(
+        //     &target,
+        //     player_camera_settings.decay,
+        //     time.delta_secs(),
+        // );
     }
 }
 
@@ -505,7 +517,7 @@ fn control_camera(
         (Changed<CameraRig>, Without<Player>),
     >,
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    player: Single<&Transform, With<Player>>,
+    player: Single<&mut Transform, With<Player>>,
 ) {
     let (mut transform, rig) = camera.into_inner();
 
