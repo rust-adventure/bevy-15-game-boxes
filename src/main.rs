@@ -40,13 +40,10 @@ fn main() {
                     MyStates::AssetLoading,
                     MyStates::Next,
                 ),
-            PhysicsPlugins::default(),
+            PhysicsPlugins::new(FixedPostUpdate),
             PhysicsDebugPlugin::default(),
-            // We need both Tnua's main controller plugin,
-            // and the plugin to connect to the physics
-            // backend (in this case XBPD-3D)
-            TnuaControllerPlugin::default(),
-            TnuaAvian3dPlugin::default(),
+            TnuaControllerPlugin::new(FixedUpdate),
+            TnuaAvian3dPlugin::new(FixedUpdate),
             InputManagerPlugin::<Action>::default(),
         ))
         .add_plugins(
@@ -69,7 +66,14 @@ fn main() {
         // gracefully quit the app when `MyStates::Next` is
         // reached
         .add_systems(OnEnter(MyStates::Next), setup)
-        .add_systems(FixedUpdate, throw_held_item)
+        .add_systems(
+            FixedUpdate,
+            (
+                throw_held_item,
+                apply_controls
+                    .in_set(TnuaUserControlsSystemSet),
+            ),
+        )
         .add_systems(
             Update,
             (
@@ -83,11 +87,6 @@ fn main() {
                 )
                     .before(apply_controls),
             ),
-        )
-        .add_systems(
-            Update,
-            apply_controls
-                .in_set(TnuaUserControlsSystemSet),
         )
         // .add_systems(
         //     (
@@ -203,7 +202,7 @@ fn setup(
         RigidBody::Dynamic,
         Collider::capsule(0.5, 0.5),
         // This bundle holds the main components.
-        TnuaControllerBundle::default(),
+        TnuaController::default(),
         // A sensor shape is not strictly necessary, but without it we'll get weird results.
         TnuaAvian3dSensorShape(Collider::cylinder(
             0.49, 0.0,
@@ -221,7 +220,7 @@ fn setup(
             Quat::from_rotation_y(0.),
             Dir3::NEG_Z,
         )
-        .with_max_time_of_impact(10_000.),
+        .with_max_distance(10_000.),
         // .with_max_time_of_impact(1000.),
         // TnuaAnimatingState::<AnimationState>::default(),
         // Describes how to convert from player inputs into those actions

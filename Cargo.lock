@@ -336,8 +336,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "avian3d"
-version = "0.1.2"
-source = "git+https://github.com/Jondolf/avian?branch=main#5b8e64c6fdf7aca0854d7d25da1a3a3fd8152df3"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b563e53203ce50ce39c221a7e0b1f73b8fc2b4aa65439b436700c4ee1e85547a"
 dependencies = [
  "avian_derive",
  "bevy",
@@ -356,8 +357,9 @@ dependencies = [
 
 [[package]]
 name = "avian_derive"
-version = "0.1.0"
-source = "git+https://github.com/Jondolf/avian?branch=main#5b8e64c6fdf7aca0854d7d25da1a3a3fd8152df3"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf96a7b75cf061f223b6e1ed3dd4d3a063b2c3c0acfb8994d6ab31e29a2bcea5"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -448,8 +450,9 @@ dependencies = [
 
 [[package]]
 name = "bevy-tnua"
-version = "0.20.0"
-source = "git+https://github.com/JulienLavocat/bevy-tnua?rev=8524491#852449195741c5c983ad615f512aa546d1e05317"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8a5783db12b6f927e7cc9976c15e23fd5b107319a9c1be8b92622fa10b94a62"
 dependencies = [
  "bevy",
  "bevy-tnua-physics-integration-layer",
@@ -458,8 +461,9 @@ dependencies = [
 
 [[package]]
 name = "bevy-tnua-avian3d"
-version = "0.1.1"
-source = "git+https://github.com/JulienLavocat/bevy-tnua?rev=8524491#852449195741c5c983ad615f512aa546d1e05317"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb3348f84267ced2c4535bd3415b384df84d49b9d04824442aef7f3b6b3af37c"
 dependencies = [
  "avian3d",
  "bevy",
@@ -468,8 +472,9 @@ dependencies = [
 
 [[package]]
 name = "bevy-tnua-physics-integration-layer"
-version = "0.4.0"
-source = "git+https://github.com/JulienLavocat/bevy-tnua?rev=8524491#852449195741c5c983ad615f512aa546d1e05317"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fbe99d25b7253cb99a00f69fe9accc875645b4ecf9910bb5f24459835ff177e"
 dependencies = [
  "bevy",
 ]

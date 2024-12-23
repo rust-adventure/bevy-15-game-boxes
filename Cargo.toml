@@ -11,9 +11,12 @@ bevy_asset_loader = { version = "0.22.0", features = [
 ] }
 iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
 iyes_progress = { version = "0.13.0", features = ["bevy_asset"] }
-avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
-bevy-tnua = { git = "https://github.com/JulienLavocat/bevy-tnua", rev = "8524491" }
-bevy-tnua-avian3d = { git = "https://github.com/JulienLavocat/bevy-tnua", rev = "8524491" }
+# avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
+# bevy-tnua = { git = "https://github.com/JulienLavocat/bevy-tnua", rev = "8524491" }
+# bevy-tnua-avian3d = { git = "https://github.com/JulienLavocat/bevy-tnua", rev = "8524491" }
+avian3d = "0.2.0"
+bevy-tnua = "0.21.0"
+bevy-tnua-avian3d = "0.2.0"
 bevy-inspector-egui = "0.28.0"
 leafwing-input-manager = "0.16.0"
 
