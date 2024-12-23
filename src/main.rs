@@ -69,6 +69,7 @@ fn main() {
         // gracefully quit the app when `MyStates::Next` is
         // reached
         .add_systems(OnEnter(MyStates::Next), setup)
+        .add_systems(FixedUpdate, throw_held_item)
         .add_systems(
             Update,
             (
@@ -121,6 +122,9 @@ enum Action {
 
 #[derive(Component)]
 struct Player;
+
+#[derive(Component, Deref, DerefMut)]
+struct Holding(Option<Entity>);
 
 #[derive(Component)]
 struct PlayerCamera;
@@ -222,6 +226,7 @@ fn setup(
         // TnuaAnimatingState::<AnimationState>::default(),
         // Describes how to convert from player inputs into those actions
         InputManagerBundle::with_map(input_map),
+        Holding(None),
         Player,
     ));
     commands
@@ -293,6 +298,18 @@ fn setup(
                   ColliderConstructor::TrimeshFromMesh,
               ));
             }
+
+            // crossbar
+            for (entity, name) in entities.iter().filter(|(_, name)| {
+                name.as_str() == "crossbar-mesh"
+              }) {
+
+          info!(?entity, ?name);
+          commands.entity(entity).insert((
+            RigidBody::Static,
+              ColliderConstructor::TrimeshFromMesh,
+          ));
+        }
         }
         );
 }
@@ -401,9 +418,17 @@ fn apply_controls(
     }
 }
 
+// #[derive(Component)]
+// struct PreThrowColliderInfo {
+//     rigid_body: RigidBody,
+//     collider: Collider,
+// }
 fn raycast_player(
     mut commands: Commands,
-    query: Single<(&ShapeCaster, &ShapeHits), With<Player>>,
+    query: Single<
+        (&ShapeCaster, &ShapeHits, &mut Holding),
+        With<Player>,
+    >,
     action_state: Single<
         &ActionState<Action>,
         With<Player>,
@@ -411,9 +436,20 @@ fn raycast_player(
     mut transforms: Query<&mut Transform>,
     named_entities: Query<(Entity, &Name)>,
     children: Query<&Children>,
+    // collider_transforms: Query<&ColliderTransform>,
+    // collider_info: Query<(&RigidBody, &Collider)>,
 ) {
     if action_state.just_pressed(&Action::Interact) {
-        info!("interact");
+        let (_, hits, mut holding) = query.into_inner();
+
+        if holding.is_some() {
+            warn!("already holding something");
+            return;
+        }
+        // get empty entity that controls where player
+        // holds objects
+        // TODO: pull this out into scene spawning so that
+        // we have direct access instead of needing to find it
         let Some(hold_empty) = named_entities
             .iter()
             .find_map(|(entity, name)| {
@@ -424,15 +460,13 @@ fn raycast_player(
             return;
         };
 
-        let (_, hits) = *query;
         // For the faster iterator that isn't sorted, use `.iter()`
         let Some(hit) = hits.iter().next() else {
             trace!("user interacted without a hit");
             return;
         };
 
-        commands.entity(hold_empty).add_child(hit.entity);
-
+        // find hold_point empty on object that is being held
         let Some(hold_point) = children
             .iter_descendants(hit.entity)
             .find_map(|e| match named_entities.get(e) {
@@ -449,9 +483,19 @@ fn raycast_player(
             return;
         };
 
+        // if we have a hold_point and an empty to parent to,
+        // reparent entity to the hold entity
+        commands.entity(hold_empty).add_child(hit.entity);
+
+        // TODO: avian 0.2, add "RigidBodyDisabled" component
+        // instead of removing RigidBody
+        // commands.entity(hit.entity).remove::<(RigidBody)>();
         commands
             .entity(hit.entity)
-            .remove::<(RigidBody, Collider)>();
+            .insert(RigidBodyDisabled);
+
+        **holding = Some(hit.entity);
+
         let Ok(mut transform) =
             transforms.get_mut(hit.entity)
         else {
@@ -467,6 +511,67 @@ fn raycast_player(
         *transform = Transform::from_translation(
             hold_point * Vec3::NEG_Y,
         );
+    }
+}
+
+fn throw_held_item(
+    mut commands: Commands,
+    mut query: Single<
+        (
+            &Transform,
+            &mut Holding,
+            &LinearVelocity,
+        ),
+        With<Player>,
+    >,
+    global_transforms: Query<&GlobalTransform>,
+    action_state: Single<
+        &ActionState<Action>,
+        With<Player>,
+    >,
+    // mut transforms: Query<&mut Transform>,
+    named_entities: Query<(Entity, &Name)>,
+    collider_transforms: Query<&ColliderTransform>,
+    colliders: Query<&Collider>,
+    // collider_info: Query<(&RigidBody, &Collider)>,
+) {
+    if action_state.just_pressed(&Action::Interact) {
+        let (
+            transform,
+            mut holding,
+            player_linear_velocity,
+        ) = query.into_inner();
+
+        if holding.is_none() {
+            warn!("not holding anything");
+            return;
+        }
+
+        let entity = (**holding).expect("should have already checked to see if holding was full");
+
+        let global_transform = global_transforms
+            .get(entity)
+            .expect("to have a transform");
+
+        commands
+            .entity(entity)
+            .remove_parent()
+            .remove::<RigidBodyDisabled>()
+            .insert((
+                global_transform.compute_transform(),
+                *player_linear_velocity,
+                //   LinearVelocity::default(),
+                AngularVelocity::default(),
+                ExternalImpulse::new(
+                    transform
+                        .forward()
+                        .as_vec3()
+                        .with_y(5.)
+                        * Vec3::new(10., 1., 10.),
+                ),
+            ));
+
+        **holding = None;
     }
 }
 
