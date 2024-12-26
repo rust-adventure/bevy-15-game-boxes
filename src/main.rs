@@ -8,8 +8,10 @@ use bevy::{
     scene::SceneInstanceReady,
 };
 use bevy_15_game::{
-    AudioAssets, LevelAssets, MyStates, PlayerAssets,
-    TextureAssets,
+    camera::{CameraPlugin, PlayerCamera},
+    controls::{Action, ControlsPlugin},
+    AudioAssets, LevelAssets, MyStates, Player,
+    PlayerAssets, TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -18,22 +20,21 @@ use bevy_asset_loader::loading_state::{
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_tnua::prelude::*;
 use bevy_tnua_avian3d::*;
-use iyes_perf_ui::{
-    prelude::{
-        PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot,
-    },
-    PerfUiPlugin,
-};
+// use iyes_perf_ui::{
+//     prelude::{
+//         PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot,
+//     },
+//     PerfUiPlugin,
+// };
 use iyes_progress::ProgressPlugin;
 use leafwing_input_manager::prelude::*;
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 fn main() {
     App::new()
-        .init_resource::<PlayerCameraSettings>()
-        .register_type::<PlayerCameraSettings>()
-        .register_type::<CameraRig>()
         .add_plugins((
+            bevy::remote::RemotePlugin::default(),
+            bevy::remote::http::RemoteHttpPlugin::default(),
             DefaultPlugins,
             ProgressPlugin::<MyStates>::new()
                 .with_state_transition(
@@ -41,11 +42,9 @@ fn main() {
                     MyStates::Next,
                 ),
             PhysicsPlugins::new(FixedPostUpdate),
-            PhysicsDebugPlugin::default(),
-            TnuaControllerPlugin::new(FixedUpdate),
-            TnuaAvian3dPlugin::new(FixedUpdate),
-            InputManagerPlugin::<Action>::default(),
+            // PhysicsDebugPlugin::default(),
         ))
+        .add_plugins((CameraPlugin, ControlsPlugin))
         .add_plugins(
             WorldInspectorPlugin::default().run_if(
                 input_toggle_active(true, KeyCode::Escape),
@@ -68,25 +67,11 @@ fn main() {
         .add_systems(OnEnter(MyStates::Next), setup)
         .add_systems(
             FixedUpdate,
-            (
-                throw_held_item,
-                apply_controls
-                    .in_set(TnuaUserControlsSystemSet),
-            ),
+            throw_held_item.never_param_warn(),
         )
         .add_systems(
             Update,
-            (
-                // update_player_raycast,
-                raycast_player,
-                // debug_render_shapecasts,
-                (
-                    control_camera,
-                    handle_mouse,
-                    target_camera_to_player,
-                )
-                    .before(apply_controls),
-            ),
+            raycast_player.never_param_warn(),
         )
         // .add_systems(
         //     (
@@ -102,31 +87,9 @@ fn main() {
         // )
         .run();
 }
-// This is the list of "things in the game I want to be able to do based on input"
-#[derive(
-    Actionlike,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    Hash,
-    Debug,
-    Reflect,
-)]
-enum Action {
-    Run,
-    Jump,
-    Interact,
-}
-
-#[derive(Component)]
-struct Player;
 
 #[derive(Component, Deref, DerefMut)]
 struct Holding(Option<Entity>);
-
-#[derive(Component)]
-struct PlayerCamera;
 
 fn setup(
     mut commands: Commands,
@@ -143,26 +106,20 @@ fn setup(
         // Msaa currently doesn't work with OIT
         // Msaa::Off,
         PlayerCamera,
-        CameraRig {
-            yaw: 0.56,
-            pitch: 0.45,
-            distance: 12.0,
-            target: Vec3::ZERO,
-        },
     ));
 
     // create a simple Perf UI with default settings
     // and all entries provided by the crate:
     // commands.spawn(PerfUiAllEntries::default());
-    commands.spawn((
-        PerfUiRoot {
-            display_labels: false,
-            layout_horizontal: true,
-            ..default()
-        },
-        PerfUiEntryFPSWorst::default(),
-        PerfUiEntryFPS::default(),
-    ));
+    // commands.spawn((
+    //     PerfUiRoot {
+    //         display_labels: false,
+    //         layout_horizontal: true,
+    //         ..default()
+    //     },
+    //     PerfUiEntryFPSWorst::default(),
+    //     PerfUiEntryFPS::default(),
+    // ));
 
     commands.spawn((
         DirectionalLight {
@@ -192,7 +149,24 @@ fn setup(
     let input_map = InputMap::new([
         (Action::Jump, KeyCode::Space),
         (Action::Interact, KeyCode::KeyE),
-    ]);
+    ])
+    .with_multiple([
+        (
+            Action::Interact,
+            GamepadButton::RightTrigger,
+        ),
+        (Action::Jump, GamepadButton::South),
+    ])
+    .with_dual_axis(Action::Move, VirtualDPad::wasd())
+    .with_dual_axis(
+        Action::Move,
+        GamepadStick::LEFT.with_deadzone_symmetric(0.1),
+    )
+    .with_dual_axis(Action::PanTilt, MouseMove::default())
+    .with_dual_axis(
+        Action::PanTilt,
+        GamepadStick::RIGHT.with_deadzone_symmetric(0.1),
+    );
 
     commands.spawn((
         Name::new("Character"),
@@ -209,7 +183,6 @@ fn setup(
         )),
         // Tnua can fix the rotation, but the character will still get rotated before it can do so.
         // By locking the rotation we can prevent this.
-        // LockedAxes::ROTATION_LOCKED,
         LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
         Transform::from_xyz(0., 10., -3.),
         //Vec3::new(0., 0.25, 0.25),
@@ -221,7 +194,6 @@ fn setup(
             Dir3::NEG_Z,
         )
         .with_max_distance(10_000.),
-        // .with_max_time_of_impact(1000.),
         // TnuaAnimatingState::<AnimationState>::default(),
         // Describes how to convert from player inputs into those actions
         InputManagerBundle::with_map(input_map),
@@ -234,11 +206,10 @@ fn setup(
             SceneRoot(levels.test_level_001.clone()),
         ))
         .observe(
-            |trigger: Trigger<SceneInstanceReady>,
+            |_trigger: Trigger<SceneInstanceReady>,
              entities: Query<(Entity, &Name)>,
              mut commands: Commands| {
-                info!("level spawned");
-                let Some((ground_entity, name)) =
+                let Some((ground_entity, _name)) =
                     entities.iter().find(|(_, name)| {
                         **name == Name::new("GroundMesh")
                     })
@@ -249,14 +220,13 @@ fn setup(
                     return;
                 };
 
-                info!(?ground_entity, "ground");
                 commands.entity(ground_entity).insert((
                     ColliderConstructor::TrimeshFromMesh,
                     RigidBody::Static,
                 ));
 
                 // cube
-                let Some((entity, name)) =
+                let Some((entity, _name)) =
                     entities.iter().find(|(_, name)| {
                         **name == Name::new("Cube.001")
                     })
@@ -267,31 +237,28 @@ fn setup(
                     return;
                 };
 
-                info!(?entity, "cube");
                 commands.entity(entity).insert((
                     ColliderConstructor::TrimeshFromMesh,
                     RigidBody::Static,
                 ));
 
                 // crates
-                for (entity, name) in
+                for (entity, _name) in
                   entities.iter().filter(|(_, name)| {
                     name.starts_with("crate.") || name.as_str() == "crate"
                     //   **name == Name::new("Cube.001")
                   }) {
 
-              info!(?entity, ?name);
               commands.entity(entity).insert((
                   RigidBody::Dynamic,
                   Collider::cuboid(1., 1., 1.)
               ));
             }
                   // mob.001
-            for (entity, name) in entities.iter().filter(|(_, name)| {
+            for (entity, _name) in entities.iter().filter(|(_, name)| {
                     name.as_str() == "mob-001.mesh"
                   }) {
 
-              info!(?entity, ?name);
               commands.entity(entity).insert((
                 RigidBody::Kinematic,
                   ColliderConstructor::TrimeshFromMesh,
@@ -299,11 +266,10 @@ fn setup(
             }
 
             // crossbar
-            for (entity, name) in entities.iter().filter(|(_, name)| {
+            for (entity, _name) in entities.iter().filter(|(_, name)| {
                 name.as_str() == "crossbar-mesh"
               }) {
 
-          info!(?entity, ?name);
           commands.entity(entity).insert((
             RigidBody::Static,
               ColliderConstructor::TrimeshFromMesh,
@@ -313,115 +279,6 @@ fn setup(
         );
 }
 
-fn apply_controls(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    camera_transform: Single<&Transform, With<Camera3d>>,
-    mut controller: Single<&mut TnuaController>,
-    action_state: Single<
-        &ActionState<Action>,
-        With<Player>,
-    >,
-    time: Res<Time>,
-    camera_rig: Single<&CameraRig>,
-) {
-    let mut direction = Vec3::ZERO;
-
-    if keyboard.pressed(KeyCode::KeyW) {
-        direction += camera_transform.forward().as_vec3();
-    }
-    if keyboard.pressed(KeyCode::KeyS) {
-        direction +=
-            camera_transform.back().as_vec3() / 200.;
-    }
-    if keyboard.pressed(KeyCode::KeyA) {
-        direction += camera_transform.left().as_vec3();
-    }
-    if keyboard.pressed(KeyCode::KeyD) {
-        direction += camera_transform.right().as_vec3();
-    }
-
-    // if direction == Vec3::ZERO {
-    // let direction = Transform::from_rotation(
-    //     Quat::from_rotation_y(time.elapsed_secs()),
-    // )
-    // .forward();
-
-    // controller.basis(TnuaBuiltinWalk {
-    //     // The `desired_velocity` determines how the
-    //     // character will move.
-    //     desired_velocity: direction.normalize_or_zero()
-    //         * 1.0,
-    //     desired_forward: Dir3::new(
-    //         direction.normalize(),
-    //     )
-    //     .ok(),
-    //     // The `float_height` must be greater (even if by
-    //     // little) from the distance between the
-    //     // character's center and the lowest point of its
-    //     // collider.
-    //     float_height: 0.78,
-    //     // `TnuaBuiltinWalk` has many other fields for
-    //     // customizing the movement - but they have
-    //     // sensible defaults. Refer to the
-    //     // `TnuaBuiltinWalk`'s documentation to learn what
-    //     // they do.
-    //     ..Default::default()
-    // });
-    // } else {
-
-    let looking_direction =
-        Quat::from_rotation_y(-camera_rig.yaw)
-            * Quat::from_rotation_x(camera_rig.pitch)
-            * Vec3::Z;
-
-    // Feed the basis every frame. Even if the player
-    // doesn't move - just use `desired_velocity:
-    // Vec3::ZERO`. `TnuaController` starts without a
-    // basis, which will make the character collider
-    // just fall.
-    controller.basis(TnuaBuiltinWalk {
-        // The `desired_velocity` determines how the
-        // character will move.
-        desired_velocity: direction.normalize_or_zero()
-            * 10.0,
-        desired_forward: Dir3::new(
-            looking_direction.normalize(),
-        )
-        .ok(),
-        // The `float_height` must be greater (even if by
-        // little) from the distance between the
-        // character's center and the lowest point of its
-        // collider.
-        float_height: 0.78,
-        // `TnuaBuiltinWalk` has many other fields for
-        // customizing the movement - but they have
-        // sensible defaults. Refer to the
-        // `TnuaBuiltinWalk`'s documentation to learn what
-        // they do.
-        ..Default::default()
-    });
-    // }
-    // Feed the jump action every frame as long as the
-    // player holds the jump button. If the player
-    // stops holding the jump button, simply stop
-    // feeding the action.
-    if action_state.pressed(&Action::Jump) {
-        controller.action(TnuaBuiltinJump {
-            // The height is the only mandatory field of the
-            // jump button.
-            height: 4.0,
-            // `TnuaBuiltinJump` also has customization
-            // fields with sensible defaults.
-            ..Default::default()
-        });
-    }
-}
-
-// #[derive(Component)]
-// struct PreThrowColliderInfo {
-//     rigid_body: RigidBody,
-//     collider: Collider,
-// }
 fn raycast_player(
     mut commands: Commands,
     query: Single<
@@ -515,7 +372,7 @@ fn raycast_player(
 
 fn throw_held_item(
     mut commands: Commands,
-    mut query: Single<
+    query: Single<
         (
             &Transform,
             &mut Holding,
@@ -528,11 +385,6 @@ fn throw_held_item(
         &ActionState<Action>,
         With<Player>,
     >,
-    // mut transforms: Query<&mut Transform>,
-    named_entities: Query<(Entity, &Name)>,
-    collider_transforms: Query<&ColliderTransform>,
-    colliders: Query<&Collider>,
-    // collider_info: Query<(&RigidBody, &Collider)>,
 ) {
     if action_state.just_pressed(&Action::Interact) {
         let (
@@ -572,81 +424,4 @@ fn throw_held_item(
 
         **holding = None;
     }
-}
-
-#[derive(Resource, Reflect)]
-#[reflect(Resource)]
-struct PlayerCameraSettings {
-    offset: Vec3,
-    decay: f32,
-}
-impl Default for PlayerCameraSettings {
-    fn default() -> Self {
-        Self {
-            offset: Vec3::new(6.9, 4.1, 6.9),
-            decay: 4.,
-        }
-    }
-}
-
-fn control_camera(
-    camera: Single<
-        (&mut Transform, &CameraRig),
-        (Changed<CameraRig>, Without<Player>),
-    >,
-) {
-    let (mut transform, rig) = camera.into_inner();
-
-    let looking_direction = Quat::from_rotation_y(-rig.yaw)
-        * Quat::from_rotation_x(
-            // TODO: .clamp is to prevent camera rotating through ground
-            // is not a permanent solution
-            rig.pitch.clamp(0., FRAC_PI_2),
-        )
-        * Vec3::Z;
-    transform.translation =
-        rig.target - rig.distance * looking_direction;
-    transform.look_at(rig.target, Dir3::Y);
-}
-
-/// Camera movement component.
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-struct CameraRig {
-    /// Rotation around the vertical axis of the camera (radians).
-    /// Positive changes makes the camera look more from the right.
-    pub yaw: f32,
-    /// Rotation around the horizontal axis of the camera (radians) (-pi/2; pi/2).
-    /// Positive looks down from above.
-    pub pitch: f32,
-    /// Distance from the center, smaller distance causes more zoom.
-    pub distance: f32,
-    /// Location in 3D space at which the camera is looking and around which it is orbiting.
-    pub target: Vec3,
-}
-
-fn handle_mouse(
-    accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    mut camera_rig: Single<&mut CameraRig>,
-) {
-    if accumulated_mouse_motion.delta != Vec2::ZERO {
-        let displacement = accumulated_mouse_motion.delta;
-        camera_rig.yaw += displacement.x / 90.;
-        camera_rig.pitch += displacement.y / 90.;
-        // The extra 0.01 is to disallow weird behavior at the poles of the rotation
-        camera_rig.pitch =
-            camera_rig.pitch.clamp(-PI / 2.01, PI / 2.01);
-    }
-}
-
-fn target_camera_to_player(
-    mut camera_rig: Single<&mut CameraRig>,
-    transform: Single<
-        &Transform,
-        (Changed<Transform>, With<Player>),
-    >,
-) {
-    camera_rig.target = transform
-        .translation
-        .with_y(transform.translation.y + 3.);
 }

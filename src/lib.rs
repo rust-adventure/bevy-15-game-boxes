@@ -1,6 +1,12 @@
+pub mod camera;
+pub mod controls;
+
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use iyes_progress::Progress;
+
+#[derive(Component)]
+pub struct Player;
 
 #[derive(
     Clone, Eq, PartialEq, Debug, Hash, Default, States,
