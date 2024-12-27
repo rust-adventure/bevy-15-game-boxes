@@ -1,15 +1,9 @@
 use avian3d::prelude::*;
-use bevy::{
-    input::{
-        common_conditions::input_toggle_active,
-        mouse::AccumulatedMouseMotion,
-    },
-    prelude::*,
-    scene::SceneInstanceReady,
-};
+use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_15_game::{
     camera::{CameraPlugin, PlayerCamera},
     controls::{Action, ControlsPlugin},
+    dev::DevPlugin,
     AudioAssets, LevelAssets, MyStates, Player,
     PlayerAssets, TextureAssets,
 };
@@ -17,18 +11,11 @@ use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
     LoadingStateAppExt,
 };
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_tnua::prelude::*;
 use bevy_tnua_avian3d::*;
-// use iyes_perf_ui::{
-//     prelude::{
-//         PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot,
-//     },
-//     PerfUiPlugin,
-// };
 use iyes_progress::ProgressPlugin;
 use leafwing_input_manager::prelude::*;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
+use std::f32::consts::FRAC_PI_4;
 
 fn main() {
     App::new()
@@ -44,16 +31,11 @@ fn main() {
             PhysicsPlugins::new(FixedPostUpdate),
             // PhysicsDebugPlugin::default(),
         ))
-        .add_plugins((CameraPlugin, ControlsPlugin))
-        .add_plugins(
-            WorldInspectorPlugin::default().run_if(
-                input_toggle_active(true, KeyCode::Escape),
-            ),
-        )
-        .add_plugins(
-            bevy::diagnostic::FrameTimeDiagnosticsPlugin,
-        )
-        // .add_plugins(PerfUiPlugin)
+        .add_plugins((
+            CameraPlugin,
+            ControlsPlugin,
+            DevPlugin,
+        ))
         .init_state::<MyStates>()
         .add_loading_state(
             LoadingState::new(MyStates::AssetLoading)
@@ -107,19 +89,6 @@ fn setup(
         // Msaa::Off,
         PlayerCamera,
     ));
-
-    // create a simple Perf UI with default settings
-    // and all entries provided by the crate:
-    // commands.spawn(PerfUiAllEntries::default());
-    // commands.spawn((
-    //     PerfUiRoot {
-    //         display_labels: false,
-    //         layout_horizontal: true,
-    //         ..default()
-    //     },
-    //     PerfUiEntryFPSWorst::default(),
-    //     PerfUiEntryFPS::default(),
-    // ));
 
     commands.spawn((
         DirectionalLight {

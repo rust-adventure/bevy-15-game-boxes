@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use leafwing_input_manager::prelude::*;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+use std::f32::consts::FRAC_PI_2;
 
 use crate::Player;
 

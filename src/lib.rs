@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod controls;
+pub mod dev;
 
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;

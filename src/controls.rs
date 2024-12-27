@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_tnua::prelude::*;
 use bevy_tnua_avian3d::*;
 use leafwing_input_manager::prelude::*;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+use std::f32::consts::FRAC_PI_4;
 
 use crate::{camera::CameraRig, Player};
 

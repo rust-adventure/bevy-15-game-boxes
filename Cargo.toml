@@ -9,7 +9,7 @@ bevy_asset_loader = { version = "0.22.0", features = [
     "3d",
     "progress_tracking",
 ] }
-# iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
+iyes_perf_ui = { git = "https://github.com/IyesGames/iyes_perf_ui", rev = "d8f3cbb" }
 iyes_progress = { version = "0.13.0", features = ["bevy_asset"] }
 # avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 # bevy-tnua = { git = "https://github.com/JulienLavocat/bevy-tnua", rev = "8524491" }
