@@ -1,11 +1,7 @@
 use avian3d::prelude::*;
-use bevy::{prelude::*, scene::SceneInstanceReady};
+use bevy::{pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer, scene::SceneInstanceReady};
 use bevy_15_game::{
-    camera::{CameraPlugin, PlayerCamera},
-    controls::{Action, ControlsPlugin},
-    dev::DevPlugin,
-    AudioAssets, LevelAssets, MyStates, Player,
-    PlayerAssets, TextureAssets,
+    camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, materials::{uber::{ColorReveal, UberMaterial}, MaterialsPlugin}, AudioAssets, LevelAssets, MyStates, Player, PlayerAssets, TextureAssets
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -29,12 +25,12 @@ fn main() {
                     MyStates::Next,
                 ),
             PhysicsPlugins::new(FixedPostUpdate),
-            // PhysicsDebugPlugin::default(),
         ))
         .add_plugins((
             CameraPlugin,
             ControlsPlugin,
             DevPlugin,
+            MaterialsPlugin
         ))
         .init_state::<MyStates>()
         .add_loading_state(
@@ -175,9 +171,54 @@ fn setup(
             SceneRoot(levels.test_level_001.clone()),
         ))
         .observe(
-            |_trigger: Trigger<SceneInstanceReady>,
+            |trigger: Trigger<SceneInstanceReady>,
              entities: Query<(Entity, &Name)>,
-             mut commands: Commands| {
+             mut commands: Commands,
+            //  mut materials: 
+            mut materials: ResMut<
+            Assets<
+                ExtendedMaterial<
+                    StandardMaterial,
+                    UberMaterial,
+                >,
+            >,
+        >,
+        mut std_materials: Res<
+            Assets<
+                    StandardMaterial,
+            >,
+        >,
+        mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+        children: Query<&Children>,
+        entities_with_std_mat: Query<&MeshMaterial3d<StandardMaterial>>
+             | {
+
+                let sphere_data: Vec<[f32; 4]> = vec![];
+
+                let sdfs =
+                    buffers.add(ShaderStorageBuffer::from(sphere_data));
+            
+                let uber_handle = UberMaterial { sdfs: sdfs };
+
+for entity in children.iter_descendants(trigger.entity()) {
+    let Ok(mat) = entities_with_std_mat.get(entity) else {
+        continue;
+    };
+
+   
+   let old_mat = std_materials.get(&mat.0).unwrap();
+let new_mat =        materials.add(ExtendedMaterial {
+            base: old_mat.clone(),
+            extension: uber_handle.clone(),
+        });
+        commands.entity(entity).remove::<MeshMaterial3d<StandardMaterial>>()
+        .insert(MeshMaterial3d(new_mat));
+
+
+}
+                
+// colliders
+
                 let Some((ground_entity, _name)) =
                     entities.iter().find(|(_, name)| {
                         **name == Name::new("GroundMesh")
@@ -193,6 +234,22 @@ fn setup(
                     ColliderConstructor::TrimeshFromMesh,
                     RigidBody::Static,
                 ));
+
+                let Some((awall_entity, _name)) =
+                entities.iter().find(|(_, name)| {
+                    **name == Name::new("AWall")
+                })
+            else {
+                error!(
+                    "no AWall found in scene"
+                );
+                return;
+            };
+
+            commands.entity(awall_entity).insert((
+                ColliderConstructor::TrimeshFromMesh,
+                RigidBody::Static,
+            ));
 
                 // cube
                 let Some((entity, _name)) =
@@ -220,7 +277,8 @@ fn setup(
 
               commands.entity(entity).insert((
                   RigidBody::Dynamic,
-                  Collider::cuboid(1., 1., 1.)
+                  Collider::cuboid(1., 1., 1.),
+                  ColorReveal::Red
               ));
             }
                   // mob.001

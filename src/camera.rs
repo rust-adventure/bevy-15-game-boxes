@@ -11,7 +11,7 @@ impl Plugin for CameraPlugin {
             .register_type::<PlayerCameraSettings>()
             .register_type::<CameraRig>()
             .add_systems(
-                Update,
+                FixedUpdate,
                 control_camera.never_param_warn(),
             );
     }

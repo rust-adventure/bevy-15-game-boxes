@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.15.0", features = ["bevy_remote"] }
+bevy = { version = "0.15.0", features = ["bevy_remote", "file_watcher"] }
 bevy_asset_loader = { version = "0.22.0", features = [
     "3d",
     "progress_tracking",
@@ -19,6 +19,7 @@ bevy-tnua = "0.21.0"
 bevy-tnua-avian3d = "0.2.0"
 bevy-inspector-egui = "0.28.0"
 leafwing-input-manager = "0.16.0"
+itertools = "0.13.0"
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
@@ -27,3 +28,48 @@ opt-level = 3
 # Enable only a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
+
+# [patch.crates-io]
+# bevy_a11y = { path = "./bevy-fork/crates/bevy_a11y" }
+# bevy_animation = { path = "./bevy-fork/crates/bevy_animation" }
+# bevy_app = { path = "./bevy-fork/crates/bevy_app" }
+# bevy_asset = { path = "./bevy-fork/crates/bevy_asset" }
+# bevy_audio = { path = "./bevy-fork/crates/bevy_audio" }
+# bevy_color = { path = "./bevy-fork/crates/bevy_color" }
+# bevy_core = { path = "./bevy-fork/crates/bevy_core" }
+# bevy_core_pipeline = { path = "./bevy-fork/crates/bevy_core_pipeline" }
+# bevy_derive = { path = "./bevy-fork/crates/bevy_derive" }
+# bevy_dev_tools = { path = "./bevy-fork/crates/bevy_dev_tools" }
+# bevy_diagnostic = { path = "./bevy-fork/crates/bevy_diagnostic" }
+# bevy_dylib = { path = "./bevy-fork/crates/bevy_dylib" }
+# bevy_ecs = { path = "./bevy-fork/crates/bevy_ecs" }
+# bevy_encase_derive = { path = "./bevy-fork/crates/bevy_encase_derive" }
+# bevy_gilrs = { path = "./bevy-fork/crates/bevy_gilrs" }
+# bevy_gizmos = { path = "./bevy-fork/crates/bevy_gizmos" }
+# bevy_gltf = { path = "./bevy-fork/crates/bevy_gltf" }
+# bevy_hierarchy = { path = "./bevy-fork/crates/bevy_hierarchy" }
+# bevy_image = { path = "./bevy-fork/crates/bevy_image" }
+# bevy_input = { path = "./bevy-fork/crates/bevy_input" }
+# bevy_internal = { path = "./bevy-fork/crates/bevy_internal" }
+# bevy_log = { path = "./bevy-fork/crates/bevy_log" }
+# bevy_macro_utils = { path = "./bevy-fork/crates/bevy_macro_utils" }
+# bevy_math = { path = "./bevy-fork/crates/bevy_math" }
+# bevy_mesh = { path = "./bevy-fork/crates/bevy_mesh" }
+# bevy_mikktspace = { path = "./bevy-fork/crates/bevy_mikktspace" }
+# bevy_pbr = { path = "./bevy-fork/crates/bevy_pbr" }
+# bevy_picking = { path = "./bevy-fork/crates/bevy_picking" }
+# bevy_ptr = { path = "./bevy-fork/crates/bevy_ptr" }
+# bevy_reflect = { path = "./bevy-fork/crates/bevy_reflect" }
+# bevy_remote = { path = "./bevy-fork/crates/bevy_remote" }
+# bevy_render = { path = "./bevy-fork/crates/bevy_render" }
+# bevy_scene = { path = "./bevy-fork/crates/bevy_scene" }
+# bevy_sprite = { path = "./bevy-fork/crates/bevy_sprite" }
+# bevy_state = { path = "./bevy-fork/crates/bevy_state" }
+# bevy_tasks = { path = "./bevy-fork/crates/bevy_tasks" }
+# bevy_text = { path = "./bevy-fork/crates/bevy_text" }
+# bevy_time = { path = "./bevy-fork/crates/bevy_time" }
+# bevy_transform = { path = "./bevy-fork/crates/bevy_transform" }
+# bevy_ui = { path = "./bevy-fork/crates/bevy_ui" }
+# bevy_utils = { path = "./bevy-fork/crates/bevy_utils" }
+# bevy_window = { path = "./bevy-fork/crates/bevy_window" }
+# bevy_winit = { path = "./bevy-fork/crates/bevy_winit" }

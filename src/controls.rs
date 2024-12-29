@@ -17,19 +17,23 @@ impl Plugin for ControlsPlugin {
         ))
         .add_systems(
             FixedUpdate,
-            (apply_controls
-                .never_param_warn()
-                .in_set(TnuaUserControlsSystemSet),),
-        )
-        .add_systems(
-            Update,
             (
+                apply_controls
+                    .never_param_warn()
+                    .in_set(TnuaUserControlsSystemSet),
                 handle_pantilt.never_param_warn(),
-                // handle_mouse.never_param_warn(),
-                target_camera_to_player.never_param_warn(),
-            )
-                .before(apply_controls),
-        );
+                target_camera_to_player.never_param_warn().before(apply_controls)
+            ),
+        )
+        // .add_systems(
+        //     Update,
+        //     (
+        //         // handle_mouse.never_param_warn(),
+                
+        //     )
+        //         ,
+        // )
+        ;
     }
 }
 
@@ -127,13 +131,13 @@ fn apply_controls(
         // little) from the distance between the
         // character's center and the lowest point of its
         // collider.
-        float_height: 0.9,
+        float_height: 1.,
         // `TnuaBuiltinWalk` has many other fields for
         // customizing the movement - but they have
         // sensible defaults. Refer to the
         // `TnuaBuiltinWalk`'s documentation to learn what
         // they do.
-        ..Default::default()
+        ..default()
     });
     // Feed the jump action every frame as long as the
     // player holds the jump button. If the player
@@ -146,7 +150,7 @@ fn apply_controls(
             height: 4.0,
             // `TnuaBuiltinJump` also has customization
             // fields with sensible defaults.
-            ..Default::default()
+            ..default()
         });
     }
 }

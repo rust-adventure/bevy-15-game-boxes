@@ -1,3 +1,4 @@
+use avian3d::prelude::*;
 use bevy::{
     input::common_conditions::input_toggle_active,
     prelude::*,
@@ -13,12 +14,13 @@ impl Plugin for DevPlugin {
             WorldInspectorPlugin::default().run_if(
                 input_toggle_active(false, KeyCode::Escape),
             ),
-        )
-        .add_plugins(
-            bevy::diagnostic::FrameTimeDiagnosticsPlugin,
-        )
-        .add_plugins(PerfUiPlugin)
-        .add_systems(Startup, spawn_debug_ui);
+        );
+        // .add_plugins(
+        //     bevy::diagnostic::FrameTimeDiagnosticsPlugin,
+        // )
+        // .add_plugins(PerfUiPlugin)
+        // .add_plugins(PhysicsDebugPlugin::default())
+        // .add_systems(Startup, spawn_debug_ui);
     }
 }
 
