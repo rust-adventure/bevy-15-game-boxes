@@ -29,24 +29,24 @@ fn main() {
     .add_systems(Startup, setup)
     .add_systems(Update, move_color_reveals);
 
-    // let render_app = app.sub_app_mut(RenderApp);
-    // render_app.add_systems(Render, debug_render);
+    let render_app = app.sub_app_mut(RenderApp);
+    render_app.add_systems(Render, debug_render);
 
     app.run();
 }
 
-// fn debug_render(
-//     buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
-// ) {
-//     println!("render");
-//     for (_, buffer) in buffers.iter() {
-//         println!(
-//             "{:?}, {:?}",
-//             buffer.buffer.id(),
-//             buffer.buffer.size()
-//         );
-//     }
-// }
+fn debug_render(
+    buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
+) {
+    println!("render");
+    for (_, buffer) in buffers.iter() {
+        println!(
+            "{:?}, {:?}",
+            buffer.buffer.id(),
+            buffer.buffer.size()
+        );
+    }
+}
 
 fn setup(
     mut commands: Commands,

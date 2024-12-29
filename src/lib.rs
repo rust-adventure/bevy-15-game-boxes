@@ -1,3 +1,4 @@
+pub mod blender_types;
 pub mod camera;
 pub mod controls;
 pub mod dev;

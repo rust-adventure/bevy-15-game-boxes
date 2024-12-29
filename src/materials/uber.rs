@@ -32,7 +32,6 @@ pub enum ColorReveal {
 }
 
 fn pack_color_reveal_buffer(
-    time: Res<Time>,
     mut materials: ResMut<
         Assets<
             ExtendedMaterial<
@@ -43,21 +42,12 @@ fn pack_color_reveal_buffer(
     >,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     sdf_locations: Query<(&ColorReveal, &GlobalTransform)>,
-    mut local: Local<usize>,
 ) {
-    // *local += 1;
-    // if *local == 3 {
-    //     panic!("");
-    // }
-    // for buffer in buffers.iter() {
-    //     dbg!(&buffer.1.data);
-    // }
     let new_sdfs = sdf_locations
         .iter()
         .map(|(color, transform)| {
-            // dbg!(transform);
             let pos = transform.translation();
-            let new = [
+            [
                 pos.x,
                 pos.y,
                 pos.z,
@@ -66,30 +56,24 @@ fn pack_color_reveal_buffer(
                     ColorReveal::Green => 2.,
                     ColorReveal::Blue => 3.,
                 },
-            ];
-            new
+            ]
         })
         .collect::<Vec<_>>();
-    // println!("new_sdfs: {:?}", &new_sdfs);
 
-    // for buffer_handle in materials
-    //     .iter()
-    //     .map(|(_, mat)| &mat.extension.sdfs)
-    //     .unique()
-    // {
-    //     let buffer =
-    //         buffers.get_mut(buffer_handle).unwrap();
-    //     // println!("{:?}", &buffer.data);
-    //     buffer.set_data(new_sdfs.as_slice());
-    //     println!("{:?}", &buffer.data);
-    // }
-    for (_, mut mat) in materials.iter_mut() {
-        // TODO: Remove; creating buffer every frame is like,
-        // bad probably
-        let sdfs = buffers.add(ShaderStorageBuffer::from(
-            new_sdfs.clone(),
-        ));
-        mat.extension.sdfs = sdfs;
+    for buffer_handle in materials
+        // This is a load-bearing iter_mut in bevy 0.15. Without it,
+        // the material handle isn't invalidated, thus the buffer isn't
+        // updated even though the data has changed
+        .iter_mut()
+        .map(|(_, mat)| &mat.extension.sdfs)
+        .unique()
+    {
+        let Some(buffer) = buffers.get_mut(buffer_handle)
+        else {
+            warn!("unable to access storage buffer on uber material");
+            continue;
+        };
+        buffer.set_data(new_sdfs.as_slice());
     }
 }
 

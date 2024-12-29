@@ -1,7 +1,24 @@
 use avian3d::prelude::*;
-use bevy::{pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer, scene::SceneInstanceReady};
+use bevy::{
+    gltf::{
+        GltfMaterialExtras, GltfMeshExtras, GltfSceneExtras,
+    },
+    pbr::ExtendedMaterial,
+    prelude::*,
+    render::storage::ShaderStorageBuffer,
+    scene::SceneInstanceReady,
+};
 use bevy_15_game::{
-    camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, materials::{uber::{ColorReveal, UberMaterial}, MaterialsPlugin}, AudioAssets, LevelAssets, MyStates, Player, PlayerAssets, TextureAssets
+    blender_types::{BCollider, BMeshExtras},
+    camera::{CameraPlugin, PlayerCamera},
+    controls::{Action, ControlsPlugin},
+    dev::DevPlugin,
+    materials::{
+        uber::{ColorReveal, UberMaterial},
+        MaterialsPlugin,
+    },
+    AudioAssets, LevelAssets, MyStates, Player,
+    PlayerAssets, TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -30,7 +47,7 @@ fn main() {
             CameraPlugin,
             ControlsPlugin,
             DevPlugin,
-            MaterialsPlugin
+            MaterialsPlugin,
         ))
         .init_state::<MyStates>()
         .add_loading_state(
@@ -49,7 +66,10 @@ fn main() {
         )
         .add_systems(
             Update,
-            raycast_player.never_param_warn(),
+            (
+                raycast_player.never_param_warn(),
+                // check_for_gltf_extras,
+            ),
         )
         // .add_systems(
         //     (
@@ -149,7 +169,7 @@ fn setup(
         // Tnua can fix the rotation, but the character will still get rotated before it can do so.
         // By locking the rotation we can prevent this.
         LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
-        Transform::from_xyz(0., 10., -3.),
+        Transform::from_xyz(-8., 10., -3.),
         //Vec3::new(0., 0.25, 0.25),
         // RayCaster::new(Vec3::ZERO, Dir3::X),
         ShapeCaster::new(
@@ -170,140 +190,7 @@ fn setup(
             Name::new("Level"),
             SceneRoot(levels.test_level_001.clone()),
         ))
-        .observe(
-            |trigger: Trigger<SceneInstanceReady>,
-             entities: Query<(Entity, &Name)>,
-             mut commands: Commands,
-            //  mut materials: 
-            mut materials: ResMut<
-            Assets<
-                ExtendedMaterial<
-                    StandardMaterial,
-                    UberMaterial,
-                >,
-            >,
-        >,
-        mut std_materials: Res<
-            Assets<
-                    StandardMaterial,
-            >,
-        >,
-        mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-        children: Query<&Children>,
-        entities_with_std_mat: Query<&MeshMaterial3d<StandardMaterial>>
-             | {
-
-                let sphere_data: Vec<[f32; 4]> = vec![];
-
-                let sdfs =
-                    buffers.add(ShaderStorageBuffer::from(sphere_data));
-            
-                let uber_handle = UberMaterial { sdfs: sdfs };
-
-for entity in children.iter_descendants(trigger.entity()) {
-    let Ok(mat) = entities_with_std_mat.get(entity) else {
-        continue;
-    };
-
-   
-   let old_mat = std_materials.get(&mat.0).unwrap();
-let new_mat =        materials.add(ExtendedMaterial {
-            base: old_mat.clone(),
-            extension: uber_handle.clone(),
-        });
-        commands.entity(entity).remove::<MeshMaterial3d<StandardMaterial>>()
-        .insert(MeshMaterial3d(new_mat));
-
-
-}
-                
-// colliders
-
-                let Some((ground_entity, _name)) =
-                    entities.iter().find(|(_, name)| {
-                        **name == Name::new("GroundMesh")
-                    })
-                else {
-                    error!(
-                        "no ground found in ground scene"
-                    );
-                    return;
-                };
-
-                commands.entity(ground_entity).insert((
-                    ColliderConstructor::TrimeshFromMesh,
-                    RigidBody::Static,
-                ));
-
-                let Some((awall_entity, _name)) =
-                entities.iter().find(|(_, name)| {
-                    **name == Name::new("AWall")
-                })
-            else {
-                error!(
-                    "no AWall found in scene"
-                );
-                return;
-            };
-
-            commands.entity(awall_entity).insert((
-                ColliderConstructor::TrimeshFromMesh,
-                RigidBody::Static,
-            ));
-
-                // cube
-                let Some((entity, _name)) =
-                    entities.iter().find(|(_, name)| {
-                        **name == Name::new("Cube.001")
-                    })
-                else {
-                    error!(
-                        "no ScaleCube mesh found in level scene"
-                    );
-                    return;
-                };
-
-                commands.entity(entity).insert((
-                    ColliderConstructor::TrimeshFromMesh,
-                    RigidBody::Static,
-                ));
-
-                // crates
-                for (entity, _name) in
-                  entities.iter().filter(|(_, name)| {
-                    name.starts_with("crate.") || name.as_str() == "crate"
-                    //   **name == Name::new("Cube.001")
-                  }) {
-
-              commands.entity(entity).insert((
-                  RigidBody::Dynamic,
-                  Collider::cuboid(1., 1., 1.),
-                  ColorReveal::Red
-              ));
-            }
-                  // mob.001
-            for (entity, _name) in entities.iter().filter(|(_, name)| {
-                    name.as_str() == "mob-001.mesh"
-                  }) {
-
-              commands.entity(entity).insert((
-                RigidBody::Kinematic,
-                  ColliderConstructor::TrimeshFromMesh,
-              ));
-            }
-
-            // crossbar
-            for (entity, _name) in entities.iter().filter(|(_, name)| {
-                name.as_str() == "crossbar-mesh"
-              }) {
-
-          commands.entity(entity).insert((
-            RigidBody::Static,
-              ColliderConstructor::TrimeshFromMesh,
-          ));
-        }
-        }
-        );
+        .observe(on_level_spawn);
 }
 
 fn raycast_player(
@@ -450,5 +337,291 @@ fn throw_held_item(
             ));
 
         **holding = None;
+    }
+}
+
+// gltf extra debugging
+// fn check_for_gltf_extras(
+//     gltf_extras_per_entity: Query<(
+//         Entity,
+//         Option<&Name>,
+//         Option<&GltfSceneExtras>,
+//         Option<&GltfExtras>,
+//         Option<&GltfMeshExtras>,
+//         Option<&GltfMaterialExtras>,
+//     )>,
+// ) {
+//     let mut gltf_extra_infos_lines: Vec<String> = vec![];
+
+//     for (id, name, scene_extras, extras, mesh_extras, material_extras) in
+//         gltf_extras_per_entity.iter()
+//     {
+//         if scene_extras.is_some()
+//             || extras.is_some()
+//             || mesh_extras.is_some()
+//             || material_extras.is_some()
+//         {
+//             let formatted_extras = format!(
+//                 "Extras per entity {} ('Name: {}'):
+//     - scene extras:     {:?}
+//     - primitive extras: {:?}
+//     - mesh extras:      {:?}
+//     - material extras:  {:?}
+//                 ",
+//                 id,
+//                 name.unwrap_or(&Name::default()),
+//                 scene_extras,
+//                 extras,
+//                 mesh_extras,
+//                 material_extras
+//             );
+//             gltf_extra_infos_lines.push(formatted_extras);
+//         }
+//         println!("{}", gltf_extra_infos_lines.join("\n"));
+
+//     }
+// }
+
+// fn check_for_gltf_extras(
+//     gltf_extras_per_entity: Query<(
+//         Entity,
+//         Option<&Name>,
+//         Option<&GltfSceneExtras>,
+//         Option<&GltfExtras>,
+//         Option<&GltfMeshExtras>,
+//         Option<&GltfMaterialExtras>,
+//     )>,
+// ) {
+//     let mut gltf_extra_infos_lines: Vec<String> = vec![];
+
+//     for (
+//         id,
+//         name,
+//         scene_extras,
+//         extras,
+//         mesh_extras,
+//         material_extras,
+//     ) in gltf_extras_per_entity.iter()
+//     {
+//         if scene_extras.is_some()
+//             || extras.is_some()
+//             || mesh_extras.is_some()
+//             || material_extras.is_some()
+//         {
+//             let formatted_extras = format!(
+//                 "Extras per entity {} ('Name: {}'):
+//     - scene extras:     {:?}
+//     - primitive extras: {:?}
+//     - mesh extras:      {:?}
+//     - material extras:  {:?}
+//                 ",
+//                 id,
+//                 name.unwrap_or(&Name::default()),
+//                 scene_extras,
+//                 extras,
+//                 mesh_extras,
+//                 material_extras
+//             );
+//             // gltf_extra_infos_lines.push(formatted_extras);
+//             println!("{}", formatted_extras);
+//         }
+//     }
+// }
+
+fn on_level_spawn(
+    trigger: Trigger<SceneInstanceReady>,
+    entities: Query<(Entity, &Name)>,
+    mut commands: Commands,
+    //  mut materials:
+    mut materials: ResMut<
+        Assets<
+            ExtendedMaterial<
+                StandardMaterial,
+                UberMaterial,
+            >,
+        >,
+    >,
+    mut std_materials: Res<Assets<StandardMaterial>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    children: Query<&Children>,
+    entities_with_std_mat: Query<
+        &MeshMaterial3d<StandardMaterial>,
+    >,
+    mesh_extras: Query<(Entity, &GltfMeshExtras)>,
+    gltf_extras: Query<(Entity, &GltfExtras)>,
+) {
+    let sphere_data: Vec<[f32; 4]> = vec![];
+
+    let sdfs =
+        buffers.add(ShaderStorageBuffer::from(sphere_data));
+
+    let uber_handle = UberMaterial { sdfs: sdfs };
+
+    for entity in
+        children.iter_descendants(trigger.entity())
+    {
+        // mesh_extras handling
+        if let Ok((_, gltf_mesh_extras)) =
+            mesh_extras.get(entity)
+        {
+            let data = serde_json::from_str::<BMeshExtras>(
+                &gltf_mesh_extras.value,
+            );
+            match data {
+                Err(e) => {
+                    warn!(?e);
+                }
+                Ok(d) => match d.collider {
+                    BCollider::TrimeshFromMesh => {
+                        commands.entity(entity).insert((
+                            RigidBody::Static,
+                            ColliderConstructor::TrimeshFromMesh
+                        ));
+                    }
+                    BCollider::Cuboid => {
+                        // let size = d.cube_size.expect("cuboids in blender have to have cube_size defined");
+                        // // TODO: Only for all crates
+                        // commands.entity(entity).insert((
+                        //     RigidBody::Dynamic,
+                        //     Collider::cuboid(
+                        //         size.x, size.y, size.z,
+                        //     ),
+                        //     ColorReveal::Red,
+                        // ));
+                    }
+                },
+            }
+        }
+
+        // mesh_extras handling
+        if let Ok((_, g_extras)) = gltf_extras.get(entity) {
+            dbg!("here");
+            let data = serde_json::from_str::<BMeshExtras>(
+                &g_extras.value,
+            );
+            match data {
+                Err(e) => {
+                    warn!(?e);
+                }
+                Ok(d) => match d.collider {
+                    BCollider::TrimeshFromMesh => {
+                        // not a mesh, do nothing
+                        error!(
+                            "TrimeshFromMesh on non-mesh"
+                        );
+                    }
+                    BCollider::Cuboid => {
+                        let size = d.cube_size.expect("cuboids in blender have to have cube_size defined");
+                        // TODO: Only for all crates
+                        commands.entity(entity).insert((
+                            RigidBody::Dynamic,
+                            Collider::cuboid(
+                                size.x, size.y, size.z,
+                            ),
+                            ColorReveal::Red,
+                        ));
+                    }
+                },
+            }
+        }
+
+        // shader swap
+        let Ok(mat) = entities_with_std_mat.get(entity)
+        else {
+            continue;
+        };
+
+        let old_mat = std_materials.get(&mat.0).unwrap();
+        let new_mat = materials.add(ExtendedMaterial {
+            base: old_mat.clone(),
+            extension: uber_handle.clone(),
+        });
+        commands
+            .entity(entity)
+            .remove::<MeshMaterial3d<StandardMaterial>>()
+            .insert(MeshMaterial3d(new_mat));
+    }
+
+    // colliders
+
+    let Some((ground_entity, _name)) =
+        entities.iter().find(|(_, name)| {
+            **name == Name::new("GroundMesh")
+        })
+    else {
+        error!("no ground found in ground scene");
+        return;
+    };
+
+    commands.entity(ground_entity).insert((
+        ColliderConstructor::TrimeshFromMesh,
+        RigidBody::Static,
+    ));
+
+    //     let Some((awall_entity, _name)) =
+    //     entities.iter().find(|(_, name)| {
+    //         **name == Name::new("AWall")
+    //     })
+    // else {
+    //     error!(
+    //         "no AWall found in scene"
+    //     );
+    //     return;
+    // };
+
+    // commands.entity(awall_entity).insert((
+    //     ColliderConstructor::TrimeshFromMesh,
+    //     RigidBody::Static,
+    // ));
+
+    // cube
+    let Some((entity, _name)) = entities
+        .iter()
+        .find(|(_, name)| **name == Name::new("Cube.001"))
+    else {
+        error!("no ScaleCube mesh found in level scene");
+        return;
+    };
+
+    commands.entity(entity).insert((
+        ColliderConstructor::TrimeshFromMesh,
+        RigidBody::Static,
+    ));
+
+    // crates
+    // for (entity, _name) in
+    //     entities.iter().filter(|(_, name)| {
+    //         name.starts_with("crate.")
+    //             || name.as_str() == "crate"
+    //         //   **name == Name::new("Cube.001")
+    //     })
+    // {
+    //     commands.entity(entity).insert((
+    //         RigidBody::Dynamic,
+    //         Collider::cuboid(1., 1., 1.),
+    //         ColorReveal::Red,
+    //     ));
+    // }
+    // mob.001
+    for (entity, _name) in entities
+        .iter()
+        .filter(|(_, name)| name.as_str() == "mob-001.mesh")
+    {
+        commands.entity(entity).insert((
+            RigidBody::Kinematic,
+            ColliderConstructor::TrimeshFromMesh,
+        ));
+    }
+
+    // crossbar
+    for (entity, _name) in
+        entities.iter().filter(|(_, name)| {
+            name.as_str() == "crossbar-mesh"
+        })
+    {
+        commands.entity(entity).insert((
+            RigidBody::Static,
+            ColliderConstructor::TrimeshFromMesh,
+        ));
     }
 }
