@@ -107,7 +107,6 @@ fn setup(
             extension: uber_handle.clone(),
         })),
         Transform::from_xyz(-2.0, 0.5, 0.0),
-        ColorReveal::Blue,
     ));
     // light
     commands.spawn((
