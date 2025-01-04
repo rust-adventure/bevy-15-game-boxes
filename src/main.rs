@@ -9,16 +9,22 @@ use bevy::{
     scene::SceneInstanceReady,
 };
 use bevy_15_game::{
-    blender_types::{BCollider, BMeshExtras},
+    blender_types::{
+        BCollider, BColorReveal, BMeshExtras, BRigidBody,
+    },
     camera::{CameraPlugin, PlayerCamera},
     controls::{Action, ControlsPlugin},
     dev::DevPlugin,
+    level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent},
     materials::{
         uber::{ColorReveal, UberMaterial},
         MaterialsPlugin,
     },
-    AudioAssets, LevelAssets, MyStates, Player,
-    PlayerAssets, TextureAssets,
+    AudioAssets, BoxesGamePlugin, GltfAssets, Holding,
+    MyStates, OriginalTransform, OutOfBoundsBehavior,
+    OutOfBoundsMarker, Player,
+    SceneInstanceReadyAfterTransformPropagationEvent,
+    TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -44,18 +50,19 @@ fn main() {
             PhysicsPlugins::new(FixedPostUpdate),
         ))
         .add_plugins((
+            BoxesGamePlugin,
             CameraPlugin,
             ControlsPlugin,
             DevPlugin,
             MaterialsPlugin,
+            PlayerSpawnPlugin,
         ))
         .init_state::<MyStates>()
         .add_loading_state(
             LoadingState::new(MyStates::AssetLoading)
                 .load_collection::<TextureAssets>()
                 .load_collection::<AudioAssets>()
-                .load_collection::<LevelAssets>()
-                .load_collection::<PlayerAssets>(),
+                .load_collection::<GltfAssets>(),
         )
         // gracefully quit the app when `MyStates::Next` is
         // reached
@@ -86,13 +93,10 @@ fn main() {
         .run();
 }
 
-#[derive(Component, Deref, DerefMut)]
-struct Holding(Option<Entity>);
-
 fn setup(
     mut commands: Commands,
-    levels: Res<LevelAssets>,
-    player: Res<PlayerAssets>,
+    gltf_assets: Res<GltfAssets>,
+    gltfs: Res<Assets<Gltf>>,
 ) {
     // spawn a camera to be able to see anything
     // commands.spawn(Camera2d);
@@ -129,68 +133,27 @@ fn setup(
         // .build(),
     ));
 
-    // character
+    let Some(misc) = gltfs.get(&gltf_assets.misc) else {
+        error!("no misc handle in gltfs");
+        return;
+    };
 
-    let input_map = InputMap::new([
-        (Action::Jump, KeyCode::Space),
-        (Action::Interact, KeyCode::KeyE),
-    ])
-    .with_multiple([
-        (
-            Action::Interact,
-            GamepadButton::RightTrigger,
-        ),
-        (Action::Jump, GamepadButton::South),
-    ])
-    .with_dual_axis(Action::Move, VirtualDPad::wasd())
-    .with_dual_axis(
-        Action::Move,
-        GamepadStick::LEFT.with_deadzone_symmetric(0.1),
-    )
-    .with_dual_axis(Action::PanTilt, MouseMove::default())
-    .with_dual_axis(
-        Action::PanTilt,
-        GamepadStick::RIGHT.with_deadzone_symmetric(0.1),
-    );
-
-    commands.spawn((
-        Name::new("Character"),
-        SceneRoot(player.player.clone()),
-        // The player character needs to be configured as a dynamic rigid body of the physics
-        // engine.
-        RigidBody::Dynamic,
-        Collider::capsule(0.5, 0.5),
-        // This bundle holds the main components.
-        TnuaController::default(),
-        // A sensor shape is not strictly necessary, but without it we'll get weird results.
-        TnuaAvian3dSensorShape(Collider::cylinder(
-            0.49, 0.0,
-        )),
-        // Tnua can fix the rotation, but the character will still get rotated before it can do so.
-        // By locking the rotation we can prevent this.
-        LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
-        Transform::from_xyz(-8., 10., -3.),
-        //Vec3::new(0., 0.25, 0.25),
-        // RayCaster::new(Vec3::ZERO, Dir3::X),
-        ShapeCaster::new(
-            Collider::cuboid(0.2, 0.2, 0.2),
-            Vec3::ZERO,
-            Quat::from_rotation_y(0.),
-            Dir3::NEG_Z,
-        )
-        .with_max_distance(10_000.),
-        // TnuaAnimatingState::<AnimationState>::default(),
-        // Describes how to convert from player inputs into those actions
-        InputManagerBundle::with_map(input_map),
-        Holding(None),
-        Player,
-    ));
     commands
         .spawn((
             Name::new("Level"),
-            SceneRoot(levels.test_level_001.clone()),
+            SceneRoot(
+                misc.named_scenes["level.001"].clone(),
+            ),
         ))
         .observe(on_level_spawn);
+    commands.spawn((
+        Sensor,
+        // TODO: why does a half_space always collide
+        // with everything here?
+        Collider::cuboid(1000., 100., 1000.),
+        Transform::from_xyz(0., -60., 0.),
+        OutOfBoundsMarker,
+    ));
 }
 
 fn raycast_player(
@@ -449,7 +412,20 @@ fn on_level_spawn(
     >,
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
+    gltf_assets: Res<GltfAssets>,
+    gltfs: Res<Assets<Gltf>>,
+    global_transforms: Query<&GlobalTransform>,
+    transforms: Query<&Transform>,
+    mut events: EventWriter<
+        SceneInstanceReadyAfterTransformPropagationEvent,
+    >,
 ) {
+    events.send(
+        SceneInstanceReadyAfterTransformPropagationEvent(
+            trigger.entity(),
+        ),
+    );
+
     let sphere_data: Vec<[f32; 4]> = vec![];
 
     let sdfs =
@@ -472,30 +448,26 @@ fn on_level_spawn(
                     warn!(?e);
                 }
                 Ok(d) => match d.collider {
-                    BCollider::TrimeshFromMesh => {
-                        commands.entity(entity).insert((
-                            RigidBody::Static,
+                    Some(BCollider::TrimeshFromMesh) => {
+                        if let Some(rigid_body) =
+                            d.rigid_body
+                        {
+                            commands.entity(entity).insert((
+                         match rigid_body {
+                            BRigidBody::Static => RigidBody::Static,
+                            BRigidBody::Dynamic => RigidBody::Dynamic,
+                        },
                             ColliderConstructor::TrimeshFromMesh
                         ));
+                        }
                     }
-                    BCollider::Cuboid => {
-                        // let size = d.cube_size.expect("cuboids in blender have to have cube_size defined");
-                        // // TODO: Only for all crates
-                        // commands.entity(entity).insert((
-                        //     RigidBody::Dynamic,
-                        //     Collider::cuboid(
-                        //         size.x, size.y, size.z,
-                        //     ),
-                        //     ColorReveal::Red,
-                        // ));
-                    }
+                    _ => {}
                 },
             }
         }
 
         // mesh_extras handling
         if let Ok((_, g_extras)) = gltf_extras.get(entity) {
-            dbg!("here");
             let data = serde_json::from_str::<BMeshExtras>(
                 &g_extras.value,
             );
@@ -503,25 +475,50 @@ fn on_level_spawn(
                 Err(e) => {
                     warn!(?e);
                 }
-                Ok(d) => match d.collider {
-                    BCollider::TrimeshFromMesh => {
-                        // not a mesh, do nothing
-                        error!(
+                Ok(d) => {
+                    match d.collider {
+                        Some(
+                            BCollider::TrimeshFromMesh,
+                        ) => {
+                            // not a mesh, do nothing
+                            error!(
                             "TrimeshFromMesh on non-mesh"
                         );
-                    }
-                    BCollider::Cuboid => {
-                        let size = d.cube_size.expect("cuboids in blender have to have cube_size defined");
-                        // TODO: Only for all crates
-                        commands.entity(entity).insert((
-                            RigidBody::Dynamic,
-                            Collider::cuboid(
-                                size.x, size.y, size.z,
-                            ),
-                            ColorReveal::Red,
-                        ));
-                    }
-                },
+                        }
+                        Some(BCollider::Cuboid) => {
+                            let size = d.cube_size.expect("cuboids in blender have to have cube_size defined");
+
+                            let mut cmds =
+                                commands.entity(entity);
+
+                            cmds.insert((
+                                Collider::cuboid(
+                                    size.x, size.y, size.z,
+                                ),
+                            ));
+                            if let Some(rigid_body) =
+                                d.rigid_body
+                            {
+                                cmds.insert(
+                            match rigid_body {
+                                BRigidBody::Static => RigidBody::Static,
+                                BRigidBody::Dynamic => RigidBody::Dynamic,
+                            });
+                            }
+                            if let Some(color_reveal) =
+                                d.color_reveal
+                            {
+                                cmds.insert(
+                        match color_reveal {
+                            BColorReveal::Red => ColorReveal::Red,
+                            BColorReveal::Green => ColorReveal::Green,
+                            BColorReveal::Blue => ColorReveal::Blue,
+                        });
+                            }
+                        }
+                        None => {}
+                    };
+                }
             }
         }
 
@@ -542,21 +539,23 @@ fn on_level_spawn(
             .insert(MeshMaterial3d(new_mat));
     }
 
+    // player
+
     // colliders
 
-    let Some((ground_entity, _name)) =
-        entities.iter().find(|(_, name)| {
-            **name == Name::new("GroundMesh")
-        })
-    else {
-        error!("no ground found in ground scene");
-        return;
-    };
+    // let Some((ground_entity, _name)) =
+    //     entities.iter().find(|(_, name)| {
+    //         **name == Name::new("GroundMesh")
+    //     })
+    // else {
+    //     error!("no ground found in ground scene");
+    //     return;
+    // };
 
-    commands.entity(ground_entity).insert((
-        ColliderConstructor::TrimeshFromMesh,
-        RigidBody::Static,
-    ));
+    // commands.entity(ground_entity).insert((
+    //     ColliderConstructor::TrimeshFromMesh,
+    //     RigidBody::Static,
+    // ));
 
     //     let Some((awall_entity, _name)) =
     //     entities.iter().find(|(_, name)| {
@@ -575,18 +574,18 @@ fn on_level_spawn(
     // ));
 
     // cube
-    let Some((entity, _name)) = entities
-        .iter()
-        .find(|(_, name)| **name == Name::new("Cube.001"))
-    else {
-        error!("no ScaleCube mesh found in level scene");
-        return;
-    };
+    // let Some((entity, _name)) = entities
+    //     .iter()
+    //     .find(|(_, name)| **name == Name::new("Cube.001"))
+    // else {
+    //     error!("no ScaleCube mesh found in level scene");
+    //     return;
+    // };
 
-    commands.entity(entity).insert((
-        ColliderConstructor::TrimeshFromMesh,
-        RigidBody::Static,
-    ));
+    // commands.entity(entity).insert((
+    //     ColliderConstructor::TrimeshFromMesh,
+    //     RigidBody::Static,
+    // ));
 
     // crates
     // for (entity, _name) in
@@ -603,25 +602,25 @@ fn on_level_spawn(
     //     ));
     // }
     // mob.001
-    for (entity, _name) in entities
-        .iter()
-        .filter(|(_, name)| name.as_str() == "mob-001.mesh")
-    {
-        commands.entity(entity).insert((
-            RigidBody::Kinematic,
-            ColliderConstructor::TrimeshFromMesh,
-        ));
-    }
+    // for (entity, _name) in entities
+    //     .iter()
+    //     .filter(|(_, name)| name.as_str() == "mob-001.mesh")
+    // {
+    //     commands.entity(entity).insert((
+    //         RigidBody::Kinematic,
+    //         ColliderConstructor::TrimeshFromMesh,
+    //     ));
+    // }
 
-    // crossbar
-    for (entity, _name) in
-        entities.iter().filter(|(_, name)| {
-            name.as_str() == "crossbar-mesh"
-        })
-    {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            ColliderConstructor::TrimeshFromMesh,
-        ));
-    }
+    // // crossbar
+    // for (entity, _name) in
+    //     entities.iter().filter(|(_, name)| {
+    //         name.as_str() == "crossbar-mesh"
+    //     })
+    // {
+    //     commands.entity(entity).insert((
+    //         RigidBody::Static,
+    //         ColliderConstructor::TrimeshFromMesh,
+    //     ));
+    // }
 }
