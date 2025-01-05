@@ -1,8 +1,6 @@
 use avian3d::prelude::*;
 use bevy::{
-    gltf::{
-        GltfMaterialExtras, GltfMeshExtras, GltfSceneExtras,
-    },
+    gltf::GltfMeshExtras,
     pbr::ExtendedMaterial,
     prelude::*,
     render::storage::ShaderStorageBuffer,
@@ -23,15 +21,12 @@ use bevy_15_game::{
     AudioAssets, BoxesGamePlugin, GltfAssets, Holding,
     MyStates, OriginalTransform, OutOfBoundsBehavior,
     OutOfBoundsMarker, Player,
-    SceneInstanceReadyAfterTransformPropagationEvent,
     TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
     LoadingStateAppExt,
 };
-use bevy_tnua::prelude::*;
-use bevy_tnua_avian3d::*;
 use iyes_progress::ProgressPlugin;
 use leafwing_input_manager::prelude::*;
 use std::f32::consts::FRAC_PI_4;
@@ -393,9 +388,7 @@ fn throw_held_item(
 
 fn on_level_spawn(
     trigger: Trigger<SceneInstanceReady>,
-    entities: Query<(Entity, &Name)>,
     mut commands: Commands,
-    //  mut materials:
     mut materials: ResMut<
         Assets<
             ExtendedMaterial<
@@ -404,7 +397,7 @@ fn on_level_spawn(
             >,
         >,
     >,
-    mut std_materials: Res<Assets<StandardMaterial>>,
+    std_materials: Res<Assets<StandardMaterial>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     children: Query<&Children>,
     entities_with_std_mat: Query<
@@ -412,19 +405,8 @@ fn on_level_spawn(
     >,
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
-    gltf_assets: Res<GltfAssets>,
-    gltfs: Res<Assets<Gltf>>,
-    global_transforms: Query<&GlobalTransform>,
-    transforms: Query<&Transform>,
-    mut events: EventWriter<
-        SceneInstanceReadyAfterTransformPropagationEvent,
-    >,
+    helper: TransformHelper,
 ) {
-    events.send(
-        SceneInstanceReadyAfterTransformPropagationEvent(
-            trigger.entity(),
-        ),
-    );
 
     let sphere_data: Vec<[f32; 4]> = vec![];
 
@@ -518,6 +500,37 @@ fn on_level_spawn(
                         }
                         None => {}
                     };
+
+                    let mut cmds = commands.entity(entity);
+
+                    if let Some(out_of_bounds_behavior) =
+                        d.out_of_bounds_behavior
+                    {
+                        cmds.insert(
+                            out_of_bounds_behavior.clone(),
+                        );
+                        match out_of_bounds_behavior {
+                    OutOfBoundsBehavior::Respawn => {
+                        if let Ok(gt) = helper.compute_global_transform(entity){
+                          cmds.insert(
+                            OriginalTransform(gt)
+                          );
+                        } else {
+                            error!("Couldn't compute global transform in sceneinstanceready");
+                        };
+                      
+                    },
+                    _=> {}
+                };
+                    }
+
+                    if d.is_spawn_point {
+                        commands.trigger(
+                            SpawnPlayerEvent {
+                                spawn_point_entity: entity,
+                            },
+                        );
+                    }
                 }
             }
         }

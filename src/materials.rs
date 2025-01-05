@@ -1,7 +1,7 @@
 pub mod uber;
 
-use bevy::{pbr::ExtendedMaterial, prelude::*};
-use uber::{UberMaterial, UberMaterialPlugin};
+use bevy::prelude::*;
+use uber::UberMaterialPlugin;
 
 pub struct MaterialsPlugin;
 

@@ -24,6 +24,7 @@ impl Plugin for DevPlugin {
     }
 }
 
+#[allow(dead_code)]
 fn spawn_debug_ui(mut commands: Commands) {
     // create a simple Perf UI with default settings
     // and all entries provided by the crate:

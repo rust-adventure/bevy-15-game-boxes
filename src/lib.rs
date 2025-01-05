@@ -10,94 +10,14 @@ use avian3d::prelude::{
 };
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
-use blender_types::BMeshExtras;
 use iyes_progress::Progress;
-use level_spawn::SpawnPlayerEvent;
 use serde::{Deserialize, Serialize};
 
 pub struct BoxesGamePlugin;
 
 impl Plugin for BoxesGamePlugin {
     fn build(&self, app: &mut App) {
-        app
-         .add_event::<SceneInstanceReadyAfterTransformPropagationEvent>()
-         .add_systems(Update, respawn_important_stuff)
-        .add_systems(
-            PostUpdate,
-            scene_instance_ready_after_transform_propagation.after(
-                TransformSystem::TransformPropagate,
-            ),
-        );
-    }
-}
-
-#[derive(Event)]
-pub struct SceneInstanceReadyAfterTransformPropagationEvent(
-    pub Entity,
-);
-
-fn scene_instance_ready_after_transform_propagation(
-    mut events: EventReader<
-        SceneInstanceReadyAfterTransformPropagationEvent,
-    >,
-    mut commands: Commands,
-    children: Query<&Children>,
-    gltf_extras: Query<(Entity, &GltfExtras)>,
-    gltf_assets: Res<GltfAssets>,
-    gltfs: Res<Assets<Gltf>>,
-    global_transforms: Query<&GlobalTransform>,
-) {
-    for event in events.read() {
-        for entity in children.iter_descendants(event.0) {
-            // mesh_extras handling
-            if let Ok((_, g_extras)) =
-                gltf_extras.get(entity)
-            {
-                let data =
-                    serde_json::from_str::<BMeshExtras>(
-                        &g_extras.value,
-                    );
-                match data {
-                    Err(e) => {
-                        warn!(?e);
-                    }
-                    Ok(d) => {
-                        let mut cmds =
-                            commands.entity(entity);
-
-                        if let Some(
-                            out_of_bounds_behavior,
-                        ) = d.out_of_bounds_behavior
-                        {
-                            cmds.insert(
-                                out_of_bounds_behavior
-                                    .clone(),
-                            );
-                            match out_of_bounds_behavior {
-                            OutOfBoundsBehavior::Respawn => {
-                                // TODO: store original Transform
-                                let gt = global_transforms.get(entity).expect("any entity with out_of_bounds_behavior in a scene should have a GlobalTransform");
-                                dbg!(&gt);
-                                cmds.insert(
-                                    OriginalTransform(gt.clone())
-                                );
-                            },
-                            _=> {}
-                        };
-                        }
-
-                        if d.is_spawn_point {
-                            commands.trigger(
-                                SpawnPlayerEvent {
-                                    spawn_point_entity:
-                                        entity,
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        app.add_systems(Update, respawn_important_stuff);
     }
 }
 

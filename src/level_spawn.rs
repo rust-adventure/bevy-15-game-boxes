@@ -1,10 +1,7 @@
 use avian3d::prelude::{
     Collider, LockedAxes, RigidBody, ShapeCaster,
 };
-use bevy::{
-    gltf::GltfMeshExtras, pbr::ExtendedMaterial,
-    prelude::*, render::storage::ShaderStorageBuffer,
-};
+use bevy::prelude::*;
 use bevy_tnua::prelude::TnuaController;
 use bevy_tnua_avian3d::TnuaAvian3dSensorShape;
 use leafwing_input_manager::{
@@ -12,8 +9,7 @@ use leafwing_input_manager::{
 };
 
 use crate::{
-    controls::Action, materials::uber::UberMaterial,
-    GltfAssets, Holding, Player,
+    controls::Action, GltfAssets, Holding, Player,
 };
 
 pub struct PlayerSpawnPlugin;
@@ -30,11 +26,11 @@ fn on_spawn_player(
     mut commands: Commands,
     gltf_assets: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
-    transforms: Query<&GlobalTransform>,
+    helper: TransformHelper,
 ) {
-    let Ok(transform) =
-        transforms.get(trigger.spawn_point_entity)
-    else {
+    let Ok(transform) = helper.compute_global_transform(
+        trigger.spawn_point_entity,
+    ) else {
         error!("No available spawn point for player");
         return;
     };

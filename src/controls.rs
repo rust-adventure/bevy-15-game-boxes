@@ -87,7 +87,6 @@ fn target_camera_to_player(
 }
 
 fn apply_controls(
-    keyboard: Res<ButtonInput<KeyCode>>,
     camera_transform: Single<&Transform, With<Camera3d>>,
     mut controller: Single<&mut TnuaController>,
     action_state: Single<
