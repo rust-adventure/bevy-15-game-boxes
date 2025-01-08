@@ -406,6 +406,7 @@ fn on_level_spawn(
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
     helper: TransformHelper,
+    asset_server: Res<AssetServer>
 ) {
 
     let sphere_data: Vec<[f32; 4]> = vec![];
@@ -413,7 +414,11 @@ fn on_level_spawn(
     let sdfs =
         buffers.add(ShaderStorageBuffer::from(sphere_data));
 
-    let uber_handle = UberMaterial { sdfs: sdfs };
+    let uber_handle = UberMaterial {
+        sdfs: sdfs,
+        decals: None,
+        grit: Some(asset_server.load("textures/gritty_texture.png"))
+    };
 
     for entity in
         children.iter_descendants(trigger.entity())

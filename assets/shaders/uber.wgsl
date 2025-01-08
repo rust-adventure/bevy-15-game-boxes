@@ -23,7 +23,10 @@
 // var<uniform> my_extended_material: MyExtendedMaterial;
 
 @group(2) @binding(100) var<storage, read> sdfs: array<vec4<f32>>;
-
+@group(2) @binding(101) var decals_color_texture: texture_2d<f32>;
+@group(2) @binding(102) var decals_color_sampler: sampler;
+@group(2) @binding(103) var grit_color_texture: texture_2d<f32>;
+@group(2) @binding(104) var grit_color_sampler: sampler;
 
 @fragment
 fn fragment(
@@ -35,24 +38,32 @@ fn fragment(
 
     // we can optionally modify the input before lighting and alpha_discard is applied
     // pbr_input.material.base_color.b = pbr_input.material.base_color.r;
-    var distance_to_nearest: f32 = 100.;
+    var distance_to_nearest: f32 = 1000.;
     for (var i = 0; i < i32(arrayLength(&sdfs)); i++) {
-            distance_to_nearest = min(distance_to_nearest, length(in.world_position.xyz - sdfs[i].xyz) - 3.0);
+            distance_to_nearest = min(
+                distance_to_nearest,
+                // - max_distance (3 for main game, 1 for example)
+                length(in.world_position.xyz - sdfs[i].xyz) - 3.0
+            );
     }
-    if distance_to_nearest <= 1.0 {
+    if distance_to_nearest <= 10.0 {
+        let can = 3. * distance_to_nearest * textureSample(grit_color_texture, grit_color_sampler, in.world_position.xz / 3.).r;
         let color = mix(
             pbr_input.material.base_color,
             vec4(0.8,0.8,0.8,pbr_input.material.base_color.a),
-            saturate(distance_to_nearest)
+            saturate(can)
         );
         pbr_input.material.base_color.r = color.r;
         pbr_input.material.base_color.g = color.g;
         pbr_input.material.base_color.b = color.b;
+
     } else {
         pbr_input.material.base_color.r = 0.8;
         pbr_input.material.base_color.g = 0.8;
         pbr_input.material.base_color.b = 0.8;
     }
+
+
     // pbr_input.material.base_color = vec4(distance_to_nearest,distance_to_nearest,distance_to_nearest,1.);
 
     // pbr_input.material.base_color = vec4(sdfs[0].x,sdfs[0].y,sdfs[0].z,1.);

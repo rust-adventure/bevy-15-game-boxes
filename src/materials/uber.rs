@@ -83,6 +83,12 @@ pub struct UberMaterial {
     // so we start from binding slot 100, leaving slots 0-99 for the base material.
     #[storage(100, read_only)]
     pub sdfs: Handle<ShaderStorageBuffer>,
+    #[texture(101)]
+    #[sampler(102)]
+    pub decals: Option<Handle<Image>>,
+    #[texture(103)]
+    #[sampler(104)]
+    pub grit: Option<Handle<Image>>,
 }
 
 impl MaterialExtension for UberMaterial {

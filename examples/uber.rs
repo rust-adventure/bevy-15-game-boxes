@@ -60,6 +60,7 @@ fn setup(
         >,
     >,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    asset_server: Res<AssetServer>,
 ) {
     // Example data for the storage buffer
     let sphere_data: Vec<[f32; 4]> = vec![];
@@ -67,7 +68,14 @@ fn setup(
     let sdfs =
         buffers.add(ShaderStorageBuffer::from(sphere_data));
 
-    let uber_handle = UberMaterial { sdfs: sdfs };
+    let uber_handle = UberMaterial {
+        sdfs: sdfs,
+        decals: None,
+        grit: Some(
+            asset_server
+                .load("textures/gritty_texture.png"),
+        ),
+    };
     // sphere
     commands.spawn((
         Mesh3d(meshes.add(Sphere::new(0.2))),
