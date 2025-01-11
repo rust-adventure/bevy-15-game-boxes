@@ -1,27 +1,14 @@
 use avian3d::prelude::*;
 use bevy::{
-    gltf::GltfMeshExtras,
-    pbr::ExtendedMaterial,
-    prelude::*,
-    render::storage::ShaderStorageBuffer,
-    scene::SceneInstanceReady,
+    color::palettes::tailwind::{BLUE_400, SLATE_50}, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
 };
 use bevy_15_game::{
     blender_types::{
         BCollider, BColorReveal, BMeshExtras, BRigidBody,
-    },
-    camera::{CameraPlugin, PlayerCamera},
-    controls::{Action, ControlsPlugin},
-    dev::DevPlugin,
-    level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent},
-    materials::{
-        uber::{ColorReveal, UberMaterial},
+    }, camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent}, materials::{
+        uber::{new_vertex_color_image, ColorReveal, UberMaterial, VertexColorSectionId},
         MaterialsPlugin,
-    },
-    AudioAssets, BoxesGamePlugin, GltfAssets, Holding,
-    MyStates, OriginalTransform, OutOfBoundsBehavior,
-    OutOfBoundsMarker, Player,
-    TextureAssets,
+    }, post_process::{PostProcessPlugin, PostProcessSettings}, AudioAssets, BoxesGamePlugin, GltfAssets, Holding, MyStates, OriginalTransform, OutOfBoundsBehavior, OutOfBoundsMarker, Player, TextureAssets
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -49,6 +36,7 @@ fn main() {
             CameraPlugin,
             ControlsPlugin,
             DevPlugin,
+            PostProcessPlugin,
             MaterialsPlugin,
             PlayerSpawnPlugin,
         ))
@@ -92,6 +80,7 @@ fn setup(
     mut commands: Commands,
     gltf_assets: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
+    mut images: ResMut<Assets<Image>>
 ) {
     // spawn a camera to be able to see anything
     // commands.spawn(Camera2d);
@@ -102,6 +91,8 @@ fn setup(
         // OrderIndependentTransparencySettings::default(),
         // Msaa currently doesn't work with OIT
         // Msaa::Off,
+        PostProcessSettings{ stroke_color: Color::from(SLATE_50).into(), width: 2 },
+        VertexColorSectionId(images.add(new_vertex_color_image())),
         PlayerCamera,
     ));
 
@@ -126,7 +117,7 @@ fn setup(
         //     ..default()
         // }
         // .build(),
-    ));
+        ));
 
     let Some(misc) = gltfs.get(&gltf_assets.misc) else {
         error!("no misc handle in gltfs");
@@ -406,8 +397,12 @@ fn on_level_spawn(
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
     helper: TransformHelper,
-    asset_server: Res<AssetServer>
+    vertex_color_images: Query<&VertexColorSectionId>,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
+
+    let image_handle = vertex_color_images.single().0.clone();
 
     let sphere_data: Vec<[f32; 4]> = vec![];
 
@@ -417,8 +412,56 @@ fn on_level_spawn(
     let uber_handle = UberMaterial {
         sdfs: sdfs,
         decals: None,
-        grit: Some(asset_server.load("textures/gritty_texture.png"))
+        grit: Some(asset_server.load("textures/gritty_texture.png")),
+        storage_texture: image_handle
     };
+
+    let cube = {
+        let mesh = Cuboid::default().mesh().build();
+        let Some(VertexAttributeValues::Float32x3(
+            positions,
+        )) = mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
+        else {
+            return;
+        };
+
+        // all cube edges become lines
+        // cube normals are always 1 (or -1) on one axis
+        // and 0 on the other two axes
+        let colors: Vec<[f32; 4]> = positions
+            .iter()
+            .map(|[x, y, z]| {
+                match (*x != 0., *y != 0., *z != 0.) {
+                    (true, false, false) => {
+                        [1., 0., 0., 1.]
+                    }
+                    (false, true, false) => {
+                        [0.02, 0., 0., 1.]
+                    }
+                    (false, false, true) => {
+                        [0.06, 0., 0., 1.]
+                    }
+                    _ => [0., 0., 0., 1.],
+                }
+            })
+            .collect();
+
+        mesh.with_inserted_attribute(
+            Mesh::ATTRIBUTE_COLOR,
+            colors,
+        )
+    };
+    commands.spawn((
+        Mesh3d(meshes.add(cube)),
+        MeshMaterial3d(materials.add(ExtendedMaterial {
+            base: StandardMaterial {
+                base_color: BLUE_400.into(),
+                ..default()
+            },
+            extension: uber_handle.clone(),
+        })),
+        Transform::from_xyz(0.0, 0.5, 0.0),
+    ));
 
     for entity in
         children.iter_descendants(trigger.entity())

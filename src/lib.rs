@@ -4,6 +4,7 @@ pub mod controls;
 pub mod dev;
 pub mod level_spawn;
 pub mod materials;
+pub mod post_process;
 
 use avian3d::prelude::{
     AngularVelocity, Collision, LinearVelocity,
