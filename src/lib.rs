@@ -106,9 +106,6 @@ fn respawn_important_stuff(
                         OutOfBoundsBehavior::Respawn,
                         Some(transform),
                     ) => {
-                        dbg!(transform
-                            .0
-                            .compute_transform());
                         commands.entity(*entity).insert((
                             AngularVelocity::default(),
                             LinearVelocity::default(),

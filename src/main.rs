@@ -1,6 +1,6 @@
 use avian3d::prelude::*;
 use bevy::{
-    color::palettes::tailwind::{BLUE_400, SLATE_50}, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
+    color::palettes::tailwind::{BLUE_400, SLATE_50}, core_pipeline::prepass::DepthPrepass, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
 };
 use bevy_15_game::{
     blender_types::{
@@ -93,6 +93,7 @@ fn setup(
         // Msaa::Off,
         PostProcessSettings{ stroke_color: Color::from(SLATE_50).into(), width: 2 },
         VertexColorSectionId(images.add(new_vertex_color_image())),
+        DepthPrepass,
         PlayerCamera,
     ));
 
@@ -400,7 +401,15 @@ fn on_level_spawn(
     vertex_color_images: Query<&VertexColorSectionId>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
+    query_meshes: Query<(&Name, &Mesh3d)>
 ) {
+for (name, m3d) in query_meshes.iter() {
+let Some(VertexAttributeValues::Float32x4(colors)) =    meshes.get(&m3d.0).unwrap().attribute(Mesh::ATTRIBUTE_COLOR) else {
+continue;
+};
+println!("\n {name} {:?}", colors);
+
+}
 
     let image_handle = vertex_color_images.single().0.clone();
 

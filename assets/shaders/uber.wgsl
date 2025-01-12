@@ -6,6 +6,8 @@
 // TODO: replace this by using custom attributes for vertex colors instead
 #import bevy_segment_outline::bevy_pbr::pbr_fragment::pbr_input_from_standard_material;
 
+#import bevy_pbr::view_transformations::depth_ndc_to_view_z
+
 #ifdef PREPASS_PIPELINE
 #import bevy_pbr::{
     prepass_io::{VertexOutput, FragmentOutput},
@@ -35,16 +37,31 @@ var vertex_id_material: texture_storage_2d<rgba8unorm, read_write>;
 
 @fragment
 fn fragment(
+    #ifdef MULTISAMPLED
+    @builtin(sample_index) sample_index: u32,
+    #endif
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
+    #ifndef MULTISAMPLED
+    let sample_index = 0u;
+    #endif
+
     // generate a PbrInput struct from the StandardMaterial bindings
     var pbr_input = pbr_input_from_standard_material(in, is_front);
 
     #ifdef VERTEX_COLORS
-    // write vertex color to storage texture
-    let mipLevel = 0;
-    textureStore(vertex_id_material, vec2u(in.position.xy), in.color);
+    let depth = bevy_pbr::prepass_utils::prepass_depth(in.position, sample_index);
+    if depth <= in.position.z {
+        // write vertex color to storage texture
+        let mipLevel = 0;
+        textureStore(
+            vertex_id_material,
+            vec2u(in.position.xy),
+            in.color
+            // vec4(in.color.r, 0., 0.,1.)
+        );
+    }
     #endif
 
     // we can optionally modify the input before lighting and alpha_discard is applied
