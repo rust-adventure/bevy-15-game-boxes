@@ -1,4 +1,4 @@
-use avian3d::prelude::RigidBody;
+// use avian3d::prelude::RigidBody;
 use bevy::math::Vec3;
 use serde::{Deserialize, Serialize};
 

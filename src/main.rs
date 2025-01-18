@@ -1,14 +1,37 @@
 use avian3d::prelude::*;
 use bevy::{
-    color::palettes::tailwind::*, core_pipeline::prepass::DepthPrepass, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
+    color::palettes::tailwind::*,
+    core_pipeline::prepass::DepthPrepass,
+    gltf::GltfMeshExtras,
+    pbr::ExtendedMaterial,
+    prelude::*,
+    render::{
+        mesh::VertexAttributeValues,
+        storage::ShaderStorageBuffer,
+    },
+    scene::SceneInstanceReady,
 };
 use bevy_15_game::{
     blender_types::{
         BCollider, BColorReveal, BMeshExtras, BRigidBody,
-    }, camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent}, materials::{
-        uber::{new_vertex_color_image, ColorReveal, UberMaterial, VertexColorSectionId},
+    },
+    camera::{CameraPlugin, PlayerCamera},
+    controls::{Action, ControlsPlugin},
+    dev::DevPlugin,
+    level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent},
+    materials::{
+        uber::{
+            new_vertex_color_image, ColorReveal,
+            UberMaterial, VertexColorSectionId,
+        },
         MaterialsPlugin,
-    }, post_process::{PostProcessPlugin, PostProcessSettings}, AudioAssets, BoxesGamePlugin, GltfAssets, Holding, MyStates, OriginalTransform, OutOfBoundsBehavior, OutOfBoundsMarker, Player, TextureAssets
+    },
+    post_process::{
+        PostProcessPlugin, PostProcessSettings,
+    },
+    AudioAssets, BoxesGamePlugin, GltfAssets, Holding,
+    MyStates, OriginalTransform, OutOfBoundsBehavior,
+    OutOfBoundsMarker, Player, TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -81,7 +104,7 @@ fn setup(
     mut commands: Commands,
     gltf_assets: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
-    mut images: ResMut<Assets<Image>>
+    mut images: ResMut<Assets<Image>>,
 ) {
     // spawn a camera to be able to see anything
     // commands.spawn(Camera2d);
@@ -92,8 +115,13 @@ fn setup(
         // OrderIndependentTransparencySettings::default(),
         // Msaa currently doesn't work with OIT
         // Msaa::Off,
-        PostProcessSettings{ stroke_color: Color::from(SLATE_50).into(), width: 2 },
-        VertexColorSectionId(images.add(new_vertex_color_image())),
+        PostProcessSettings {
+            stroke_color: Color::from(SLATE_50).into(),
+            width: 2,
+        },
+        VertexColorSectionId(
+            images.add(new_vertex_color_image()),
+        ),
         DepthPrepass,
         PlayerCamera,
     ));
@@ -119,7 +147,7 @@ fn setup(
         //     ..default()
         // }
         // .build(),
-        ));
+    ));
 
     let Some(misc) = gltfs.get(&gltf_assets.misc) else {
         error!("no misc handle in gltfs");
@@ -170,7 +198,8 @@ fn raycast_player(
         // get empty entity that controls where player
         // holds objects
         // TODO: pull this out into scene spawning so that
-        // we have direct access instead of needing to find it
+        // we have direct access instead of needing to
+        // find it
         let Some(hold_empty) = named_entities
             .iter()
             .find_map(|(entity, name)| {
@@ -181,13 +210,15 @@ fn raycast_player(
             return;
         };
 
-        // For the faster iterator that isn't sorted, use `.iter()`
+        // For the faster iterator that isn't sorted, use
+        // `.iter()`
         let Some(hit) = hits.iter().next() else {
             trace!("user interacted without a hit");
             return;
         };
 
-        // find hold_point empty on object that is being held
+        // find hold_point empty on object that is being
+        // held
         let Some(hold_point) = children
             .iter_descendants(hit.entity)
             .find_map(|e| match named_entities.get(e) {
@@ -204,13 +235,14 @@ fn raycast_player(
             return;
         };
 
-        // if we have a hold_point and an empty to parent to,
-        // reparent entity to the hold entity
+        // if we have a hold_point and an empty to parent
+        // to, reparent entity to the hold entity
         commands.entity(hold_empty).add_child(hit.entity);
 
-        // TODO: avian 0.2, add "RigidBodyDisabled" component
-        // instead of removing RigidBody
-        // commands.entity(hit.entity).remove::<(RigidBody)>();
+        // TODO: avian 0.2, add "RigidBodyDisabled"
+        // component instead of removing RigidBody
+        // commands.entity(hit.entity).
+        // remove::<(RigidBody)>();
         commands
             .entity(hit.entity)
             .insert(RigidBodyDisabled);
@@ -228,7 +260,8 @@ fn raycast_player(
 
         // this is hardcoded to only a Y axis change
         // could be generic over translation and scale
-        // by inverting Transform -> Matrix::invert -> Transform
+        // by inverting Transform -> Matrix::invert ->
+        // Transform
         *transform = Transform::from_translation(
             hold_point * Vec3::NEG_Y,
         );
@@ -302,9 +335,11 @@ fn throw_held_item(
 //         Option<&GltfMaterialExtras>,
 //     )>,
 // ) {
-//     let mut gltf_extra_infos_lines: Vec<String> = vec![];
+//     let mut gltf_extra_infos_lines: Vec<String>
+// = vec![];
 
-//     for (id, name, scene_extras, extras, mesh_extras, material_extras) in
+//     for (id, name, scene_extras, extras,
+// mesh_extras, material_extras) in
 //         gltf_extras_per_entity.iter()
 //     {
 //         if scene_extras.is_some()
@@ -313,22 +348,18 @@ fn throw_held_item(
 //             || material_extras.is_some()
 //         {
 //             let formatted_extras = format!(
-//                 "Extras per entity {} ('Name: {}'):
+//                 "Extras per entity {} ('Name:
+// {}'):
 //     - scene extras:     {:?}
 //     - primitive extras: {:?}
 //     - mesh extras:      {:?}
-//     - material extras:  {:?}
-//                 ",
-//                 id,
-//                 name.unwrap_or(&Name::default()),
-//                 scene_extras,
-//                 extras,
-//                 mesh_extras,
-//                 material_extras
-//             );
-//             gltf_extra_infos_lines.push(formatted_extras);
-//         }
-//         println!("{}", gltf_extra_infos_lines.join("\n"));
+//     - material extras:  {:?} ", id,
+//       name.unwrap_or(&Name::default()),
+//       scene_extras, extras, mesh_extras,
+//       material_extras );
+//       gltf_extra_infos_lines.
+//       push(formatted_extras); } println!("{}",
+//       gltf_extra_infos_lines.join("\n"));
 
 //     }
 // }
@@ -343,7 +374,8 @@ fn throw_held_item(
 //         Option<&GltfMaterialExtras>,
 //     )>,
 // ) {
-//     let mut gltf_extra_infos_lines: Vec<String> = vec![];
+//     let mut gltf_extra_infos_lines: Vec<String>
+// = vec![];
 
 //     for (
 //         id,
@@ -360,22 +392,18 @@ fn throw_held_item(
 //             || material_extras.is_some()
 //         {
 //             let formatted_extras = format!(
-//                 "Extras per entity {} ('Name: {}'):
+//                 "Extras per entity {} ('Name:
+// {}'):
 //     - scene extras:     {:?}
 //     - primitive extras: {:?}
 //     - mesh extras:      {:?}
-//     - material extras:  {:?}
-//                 ",
-//                 id,
-//                 name.unwrap_or(&Name::default()),
-//                 scene_extras,
-//                 extras,
-//                 mesh_extras,
-//                 material_extras
-//             );
-//             // gltf_extra_infos_lines.push(formatted_extras);
-//             println!("{}", formatted_extras);
-//         }
+//     - material extras:  {:?} ", id,
+//       name.unwrap_or(&Name::default()),
+//       scene_extras, extras, mesh_extras,
+//       material_extras ); //
+//       gltf_extra_infos_lines.
+//       push(formatted_extras); println!("{}",
+//       formatted_extras); }
 //     }
 // }
 
@@ -402,17 +430,22 @@ fn on_level_spawn(
     vertex_color_images: Query<&VertexColorSectionId>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    query_meshes: Query<(&Name, &Mesh3d)>
+    query_meshes: Query<(&Name, &Mesh3d)>,
 ) {
-for (name, m3d) in query_meshes.iter() {
-let Some(VertexAttributeValues::Float32x4(colors)) =    meshes.get(&m3d.0).unwrap().attribute(Mesh::ATTRIBUTE_COLOR) else {
-continue;
-};
-println!("\n {name} {:?}", colors);
+    for (name, m3d) in query_meshes.iter() {
+        let Some(VertexAttributeValues::Float32x4(colors)) =
+            meshes
+                .get(&m3d.0)
+                .unwrap()
+                .attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            continue;
+        };
+        println!("\n {name} {:?}", colors);
+    }
 
-}
-
-    let image_handle = vertex_color_images.single().0.clone();
+    let image_handle =
+        vertex_color_images.single().0.clone();
 
     let sphere_data: Vec<[f32; 4]> = vec![];
 
@@ -422,8 +455,11 @@ println!("\n {name} {:?}", colors);
     let uber_handle = UberMaterial {
         sdfs: sdfs,
         decals: None,
-        grit: Some(asset_server.load("textures/gritty_texture.png")),
-        storage_texture: image_handle
+        grit: Some(
+            asset_server
+                .load("textures/gritty_texture.png"),
+        ),
+        storage_texture: image_handle,
     };
 
     let cube = {
@@ -619,8 +655,8 @@ println!("\n {name} {:?}", colors);
     //         **name == Name::new("GroundMesh")
     //     })
     // else {
-    //     error!("no ground found in ground scene");
-    //     return;
+    //     error!("no ground found in ground
+    // scene");     return;
     // };
 
     // commands.entity(ground_entity).insert((
@@ -647,10 +683,10 @@ println!("\n {name} {:?}", colors);
     // cube
     // let Some((entity, _name)) = entities
     //     .iter()
-    //     .find(|(_, name)| **name == Name::new("Cube.001"))
-    // else {
-    //     error!("no ScaleCube mesh found in level scene");
-    //     return;
+    //     .find(|(_, name)| **name ==
+    // Name::new("Cube.001")) else {
+    //     error!("no ScaleCube mesh found in
+    // level scene");     return;
     // };
 
     // commands.entity(entity).insert((
@@ -663,8 +699,8 @@ println!("\n {name} {:?}", colors);
     //     entities.iter().filter(|(_, name)| {
     //         name.starts_with("crate.")
     //             || name.as_str() == "crate"
-    //         //   **name == Name::new("Cube.001")
-    //     })
+    //         //   **name ==
+    // Name::new("Cube.001")     })
     // {
     //     commands.entity(entity).insert((
     //         RigidBody::Dynamic,
@@ -675,8 +711,8 @@ println!("\n {name} {:?}", colors);
     // mob.001
     // for (entity, _name) in entities
     //     .iter()
-    //     .filter(|(_, name)| name.as_str() == "mob-001.mesh")
-    // {
+    //     .filter(|(_, name)| name.as_str() ==
+    // "mob-001.mesh") {
     //     commands.entity(entity).insert((
     //         RigidBody::Kinematic,
     //         ColliderConstructor::TrimeshFromMesh,

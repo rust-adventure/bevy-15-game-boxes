@@ -70,17 +70,20 @@ fn on_spawn_player(
         commands.spawn((
             Name::new("Character"),
             SceneRoot(character.clone()),
-            // The player character needs to be configured as a dynamic rigid body of the physics
+            // The player character needs to be configured
+            // as a dynamic rigid body of the physics
             // engine.
             RigidBody::Dynamic,
             Collider::capsule(0.5, 0.5),
             // This bundle holds the main components.
             TnuaController::default(),
-            // A sensor shape is not strictly necessary, but without it we'll get weird results.
+            // A sensor shape is not strictly necessary,
+            // but without it we'll get weird results.
             TnuaAvian3dSensorShape(Collider::cylinder(
                 0.49, 0.0,
             )),
-            // Tnua can fix the rotation, but the character will still get rotated before it can do so.
+            // Tnua can fix the rotation, but the character
+            // will still get rotated before it can do so.
             // By locking the rotation we can prevent this.
             LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
             position,
@@ -94,7 +97,8 @@ fn on_spawn_player(
             )
             .with_max_distance(10_000.),
             // TnuaAnimatingState::<AnimationState>::default(),
-            // Describes how to convert from player inputs into those actions
+            // Describes how to convert from player inputs
+            // into those actions
             InputManagerBundle::with_map(input_map),
             Holding(None),
             Player,

@@ -46,7 +46,8 @@ fn control_camera(
 
     let looking_direction = Quat::from_rotation_y(-rig.yaw)
         * Quat::from_rotation_x(
-            // TODO: .clamp is to prevent camera rotating through ground
+            // TODO: .clamp is to prevent camera rotating
+            // through ground
             // is not a permanent solution
             rig.pitch.clamp(0., FRAC_PI_2),
         )
@@ -60,15 +61,20 @@ fn control_camera(
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct CameraRig {
-    /// Rotation around the vertical axis of the camera (radians).
-    /// Positive changes makes the camera look more from the right.
+    /// Rotation around the vertical axis of the
+    /// camera (radians). Positive changes
+    /// makes the camera look more from the right.
     pub yaw: f32,
-    /// Rotation around the horizontal axis of the camera (radians) (-pi/2; pi/2).
+    /// Rotation around the horizontal axis of the
+    /// camera (radians) (-pi/2; pi/2).
     /// Positive looks down from above.
     pub pitch: f32,
-    /// Distance from the center, smaller distance causes more zoom.
+    /// Distance from the center, smaller distance
+    /// causes more zoom.
     pub distance: f32,
-    /// Location in 3D space at which the camera is looking and around which it is orbiting.
+    /// Location in 3D space at which the camera
+    /// is looking and around which it is
+    /// orbiting.
     pub target: Vec3,
 }
 
@@ -84,15 +90,18 @@ impl Default for CameraRig {
 }
 
 // fn handle_mouse(
-//     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
+//     accumulated_mouse_motion:
+// Res<AccumulatedMouseMotion>,
 //     mut camera_rig: Single<&mut CameraRig>,
 // ) {
-//     if accumulated_mouse_motion.delta != Vec2::ZERO {
-//         let displacement = accumulated_mouse_motion.delta;
+//     if accumulated_mouse_motion.delta !=
+// Vec2::ZERO {         let displacement =
+// accumulated_mouse_motion.delta;
 //         camera_rig.yaw += displacement.x / 90.;
-//         camera_rig.pitch += displacement.y / 90.;
-//         // The extra 0.01 is to disallow weird behavior at the poles of the rotation
+//         camera_rig.pitch += displacement.y /
+// 90.;         // The extra 0.01 is to disallow
+// weird behavior at the poles of the rotation
 //         camera_rig.pitch =
-//             camera_rig.pitch.clamp(-PI / 2.01, PI / 2.01);
-//     }
+//             camera_rig.pitch.clamp(-PI / 2.01,
+// PI / 2.01);     }
 // }

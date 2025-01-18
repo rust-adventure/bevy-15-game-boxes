@@ -34,12 +34,14 @@ impl Plugin for UberMaterialPlugin {
                 >,
             >::default())
             .add_systems(First, pack_color_reveal_buffer)
-            // update the vertex color texture when the window resizes,
-            // and clear it for each frame
+            // update the vertex color texture when the
+            // window resizes, and clear it for
+            // each frame
             .add_systems(Last, update_vertex_id_texture);
 
-        // load the custom replacement for bevy_pbr::pbr_fragment
-        // that removes vertex coloring
+        // load the custom replacement for
+        // bevy_pbr::pbr_fragment that removes
+        // vertex coloring
         load_internal_asset!(
             app,
             PBR_FRAGMENT_REPLACEMENT,
@@ -87,8 +89,9 @@ fn pack_color_reveal_buffer(
         .collect::<Vec<_>>();
 
     for buffer_handle in materials
-        // This is a load-bearing iter_mut in bevy 0.15. Without it,
-        // the material handle isn't invalidated, thus the buffer isn't
+        // This is a load-bearing iter_mut in bevy 0.15.
+        // Without it, the material handle isn't
+        // invalidated, thus the buffer isn't
         // updated even though the data has changed
         .iter_mut()
         .map(|(_, mat)| &mat.extension.sdfs)
@@ -105,8 +108,10 @@ fn pack_color_reveal_buffer(
 
 #[derive(Asset, AsBindGroup, Reflect, Debug, Clone)]
 pub struct UberMaterial {
-    // We need to ensure that the bindings of the base material and the extension do not conflict,
-    // so we start from binding slot 100, leaving slots 0-99 for the base material.
+    // We need to ensure that the bindings of the base
+    // material and the extension do not conflict,
+    // so we start from binding slot 100, leaving slots
+    // 0-99 for the base material.
     #[storage(100, read_only)]
     pub sdfs: Handle<ShaderStorageBuffer>,
     #[texture(101)]
@@ -188,7 +193,8 @@ pub fn new_vertex_color_image() -> Image {
         TextureFormat::Rgba8Unorm,
         RenderAssetUsages::default(),
     );
-    // You need to set these texture usage flags in order to use the image as a render target
+    // You need to set these texture usage flags in
+    // order to use the image as a render target
     image.texture_descriptor.usage =
         TextureUsages::TEXTURE_BINDING
             | TextureUsages::COPY_DST
