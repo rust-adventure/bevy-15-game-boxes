@@ -1,6 +1,6 @@
 use avian3d::prelude::*;
 use bevy::{
-    color::palettes::tailwind::{BLUE_400, SLATE_50}, core_pipeline::prepass::DepthPrepass, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
+    color::palettes::tailwind::*, core_pipeline::prepass::DepthPrepass, gltf::GltfMeshExtras, pbr::ExtendedMaterial, prelude::*, render::{mesh::VertexAttributeValues, storage::ShaderStorageBuffer}, scene::SceneInstanceReady
 };
 use bevy_15_game::{
     blender_types::{
@@ -20,6 +20,7 @@ use std::f32::consts::FRAC_PI_4;
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor(SKY_100.into()))
         .add_plugins((
             bevy::remote::RemotePlugin::default(),
             bevy::remote::http::RemoteHttpPlugin::default(),
