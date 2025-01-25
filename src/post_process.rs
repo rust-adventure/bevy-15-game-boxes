@@ -11,7 +11,6 @@ use bevy::{
             ExtractComponent, ExtractComponentPlugin,
             UniformComponentPlugin,
         },
-        render_asset::RenderAssets,
         render_graph::{
             NodeRunError, RenderGraphApp,
             RenderGraphContext, RenderLabel, ViewNode,
@@ -24,16 +23,14 @@ use bevy::{
             *,
         },
         renderer::{RenderContext, RenderDevice},
-        texture::GpuImage,
         view::ViewTarget,
         RenderApp,
     },
 };
 
-use crate::materials::uber::VertexColorSectionId;
+use crate::section_texture::SectionTexture;
 
-/// It is generally encouraged to set up post
-/// processing effects as a plugin
+/// It is generally encouraged to set up post processing effects as a plugin
 pub struct PostProcessPlugin;
 
 impl Plugin for PostProcessPlugin {
@@ -114,37 +111,29 @@ struct PostProcessLabel;
 #[derive(Default)]
 struct PostProcessNode;
 
-// The ViewNode trait is required by the
-// ViewNodeRunner
+// The ViewNode trait is required by the ViewNodeRunner
 impl ViewNode for PostProcessNode {
-    // The node needs a query to gather data from the
-    // ECS in order to do its rendering,
-    // but it's not a normal system so we need to
-    // define it manually.
+    // The node needs a query to gather data from the ECS in order to do its rendering,
+    // but it's not a normal system so we need to define it manually.
     //
     // This query will only run on the view entity
     type ViewQuery = (
         &'static ViewTarget,
-        // This makes sure the node only runs on cameras
-        // with the PostProcessSettings component
+        // This makes sure the node only runs on cameras with the PostProcessSettings component
         &'static PostProcessSettings,
-        &'static VertexColorSectionId,
-        // As there could be multiple post processing
-        // components sent to the GPU (one per camera),
-        // we need to get the index of the one that is
-        // associated with the current view.
+        &'static SectionTexture,
+        // As there could be multiple post processing components sent to the GPU (one per camera),
+        // we need to get the index of the one that is associated with the current view.
         &'static DynamicUniformIndex<PostProcessSettings>,
     );
 
     // Runs the node logic
     // This is where you encode draw commands.
     //
-    // This will run on every view on which the graph
-    // is running. If you don't want your effect
-    // to run on every camera, you'll need to make
-    // sure you have a marker component as part of
-    // [`ViewQuery`] to identify which camera(s)
-    // should run the effect.
+    // This will run on every view on which the graph is running.
+    // If you don't want your effect to run on every camera,
+    // you'll need to make sure you have a marker component as part of [`ViewQuery`]
+    // to identify which camera(s) should run the effect.
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -152,20 +141,18 @@ impl ViewNode for PostProcessNode {
         (
             view_target,
             _post_process_settings,
-            vertex_color_section_id,
+            section_texture,
             settings_index,
         ): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        // Get the pipeline resource that contains the
-        // global data we need to create the
-        // render pipeline
+        // Get the pipeline resource that contains the global data we need
+        // to create the render pipeline
         let post_process_pipeline =
             world.resource::<PostProcessPipeline>();
 
-        // The pipeline cache is a cache of all previously
-        // created pipelines. It is required to
-        // avoid creating a new pipeline each frame,
+        // The pipeline cache is a cache of all previously created pipelines.
+        // It is required to avoid creating a new pipeline each frame,
         // which is expensive due to shader compilation.
         let pipeline_cache =
             world.resource::<PipelineCache>();
@@ -188,57 +175,49 @@ impl ViewNode for PostProcessNode {
         };
 
         // get the GpuImage for a Handle<Image>
-        let vertex_texture = world
-            .resource::<RenderAssets<GpuImage>>()
-            .get(&vertex_color_section_id.0)
-            .unwrap();
+        // let vertex_texture = world
+        //     .resource::<RenderAssets<GpuImage>>()
+        //     .get(&section_texture.0)
+        //     .unwrap();
+        let section_texture_view = &section_texture
+            .sections
+            .as_ref()
+            .unwrap()
+            .texture
+            .default_view;
         // dbg!(&vertex_texture);
 
-        // This will start a new "post process write",
-        // obtaining two texture views from the
-        // view target - a `source` and a `destination`.
-        // `source` is the "current" main texture and you
-        // _must_ write into `destination` because
-        // calling `post_process_write()` on the
-        // [`ViewTarget`] will internally flip the
-        // [`ViewTarget`]'s main texture to the
-        // `destination` texture. Failing to do so will
-        // cause the current main texture
-        // information to be lost.
+        // This will start a new "post process write", obtaining two texture
+        // views from the view target - a `source` and a `destination`.
+        // `source` is the "current" main texture and you _must_ write into
+        // `destination` because calling `post_process_write()` on the
+        // [`ViewTarget`] will internally flip the [`ViewTarget`]'s main
+        // texture to the `destination` texture. Failing to do so will cause
+        // the current main texture information to be lost.
         let post_process = view_target.post_process_write();
 
         // The bind_group gets created each frame.
         //
-        // Normally, you would create a bind_group in the
-        // Queue set, but this doesn't work with
-        // the post_process_write(). The reason it
-        // doesn't work is because each post_process_write
-        // will alternate the source/destination.
-        // The only way to have the correct
-        // source/destination for the bind_group
-        // is to make sure you get it during the node
-        // execution.
+        // Normally, you would create a bind_group in the Queue set,
+        // but this doesn't work with the post_process_write().
+        // The reason it doesn't work is because each post_process_write will alternate the source/destination.
+        // The only way to have the correct source/destination for the bind_group
+        // is to make sure you get it during the node execution.
         let bind_group = render_context
             .render_device()
             .create_bind_group(
                 "post_process_bind_group",
                 &post_process_pipeline.layout,
-                // It's important for this to match the
-                // BindGroupLayout defined in the
-                // PostProcessPipeline
+                // It's important for this to match the BindGroupLayout defined in the PostProcessPipeline
                 &BindGroupEntries::sequential((
                     // Make sure to use the source view
                     post_process.source,
-                    // Use the sampler created for the
-                    // pipeline
+                    // Use the sampler created for the pipeline
                     &post_process_pipeline.sampler,
                     // Set the settings binding
                     settings_binding.clone(),
-                    vertex_texture
-                        .texture_view
-                        .into_binding(),
-                    // Use the sampler created for the
-                    // pipeline
+                    section_texture_view.into_binding(),
+                    // Use the sampler created for the pipeline
                     &post_process_pipeline
                         .vertex_id_sampler,
                 )),
@@ -251,10 +230,8 @@ impl ViewNode for PostProcessNode {
                     label: Some("post_process_pass"),
                     color_attachments: &[Some(
                         RenderPassColorAttachment {
-                            // We need to specify the post
-                            // process destination view here
-                            // to make sure we write to the
-                            // appropriate texture.
+                            // We need to specify the post process destination view here
+                            // to make sure we write to the appropriate texture.
                             view: post_process.destination,
                             resolve_target: None,
                             ops: Operations::default(),
@@ -266,16 +243,12 @@ impl ViewNode for PostProcessNode {
                 },
             );
 
-        // This is mostly just wgpu boilerplate for
-        // drawing a fullscreen triangle,
+        // This is mostly just wgpu boilerplate for drawing a fullscreen triangle,
         // using the pipeline/bind_group created above
         render_pass.set_render_pipeline(pipeline);
-        // By passing in the index of the post process
-        // settings on this view, we ensure
-        // that in the event that multiple settings were
-        // sent to the GPU (as would be the
-        // case with multiple cameras), we use the correct
-        // one.
+        // By passing in the index of the post process settings on this view, we ensure
+        // that in the event that multiple settings were sent to the GPU (as would be the
+        // case with multiple cameras), we use the correct one.
         render_pass.set_bind_group(
             0,
             &bind_group,
@@ -287,8 +260,7 @@ impl ViewNode for PostProcessNode {
     }
 }
 
-// This contains global data used by the render
-// pipeline. This will be created once on startup.
+// This contains global data used by the render pipeline. This will be created once on startup.
 #[derive(Resource)]
 struct PostProcessPipeline {
     layout: BindGroupLayout,
@@ -302,8 +274,7 @@ impl FromWorld for PostProcessPipeline {
         let render_device =
             world.resource::<RenderDevice>();
 
-        // We need to define the bind group layout used
-        // for our pipeline
+        // We need to define the bind group layout used for our pipeline
         let layout = render_device.create_bind_group_layout(
             "post_process_bind_group_layout",
             &BindGroupLayoutEntries::sequential(
@@ -324,9 +295,7 @@ impl FromWorld for PostProcessPipeline {
             ),
         );
 
-        // We can create the sampler here since it won't
-        // change at runtime and doesn't depend on the
-        // view
+        // We can create the sampler here since it won't change at runtime and doesn't depend on the view
         let sampler = render_device
             .create_sampler(&SamplerDescriptor::default());
         let vertex_id_sampler = render_device
@@ -351,7 +320,15 @@ impl FromWorld for PostProcessPipeline {
                     // It can be anything as long as it matches here and in the shader.
                     entry_point: "fragment".into(),
                     targets: vec![Some(ColorTargetState {
-                        format: TextureFormat::bevy_default(),
+                        format: ViewTarget::TEXTURE_FORMAT_HDR,
+                    //     format: if key
+                    //     .contains(MeshPipelineKey::HDR)
+                    // {
+                    //     ViewTarget::TEXTURE_FORMAT_HDR
+                    // } else {
+                    //     TextureFormat::bevy_default()
+                    // },
+                        // format: TextureFormat::bevy_default(),
                         blend: None,
                         write_mask: ColorWrites::ALL,
                     })],
@@ -375,8 +352,7 @@ impl FromWorld for PostProcessPipeline {
     }
 }
 
-// This is the component that will get passed to
-// the shader
+// This is the component that will get passed to the shader
 #[derive(
     Component,
     Default,
@@ -388,7 +364,16 @@ impl FromWorld for PostProcessPipeline {
 pub struct PostProcessSettings {
     pub stroke_color: LinearRgba,
     pub width: u32,
+    // pub display:
     // WebGL2 structs must be 16 byte aligned.
     // #[cfg(feature = "webgl2")]
     // _webgl2_padding: Vec3,
+}
+
+/// What should the post-process display.
+/// TODO: can we shader def this in?
+enum PostProcessDisplay {
+    Default,
+    SobelOnly,
+    SectionTextureOnly,
 }

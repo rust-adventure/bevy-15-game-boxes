@@ -26,6 +26,7 @@ leafwing-input-manager = "0.16.0"
 itertools = "0.13.0"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
+nonmax = "0.5.5"
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

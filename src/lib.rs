@@ -5,6 +5,7 @@ pub mod dev;
 pub mod level_spawn;
 pub mod materials;
 pub mod post_process;
+pub mod section_texture;
 
 use avian3d::prelude::{
     AngularVelocity, Collision, LinearVelocity,

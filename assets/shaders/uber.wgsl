@@ -1,10 +1,10 @@
 #import bevy_pbr::{
-    // pbr_fragment::pbr_input_from_standard_material,
+    pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::alpha_discard,
 }
 // replacement for the above `pbr_input_from_standard_material` with customizations
 // TODO: replace this by using custom attributes for vertex colors instead
-#import bevy_segment_outline::bevy_pbr::pbr_fragment::pbr_input_from_standard_material;
+// #import bevy_segment_outline::bevy_pbr::pbr_fragment::pbr_input_from_standard_material;
 
 #import bevy_pbr::view_transformations::depth_ndc_to_view_z
 
@@ -32,8 +32,6 @@
 @group(2) @binding(102) var decals_color_sampler: sampler;
 @group(2) @binding(103) var grit_color_texture: texture_2d<f32>;
 @group(2) @binding(104) var grit_color_sampler: sampler;
-@group(2) @binding(105)
-var vertex_id_material: texture_storage_2d<rgba8unorm, read_write>;
 
 @fragment
 fn fragment(
@@ -49,20 +47,6 @@ fn fragment(
 
     // generate a PbrInput struct from the StandardMaterial bindings
     var pbr_input = pbr_input_from_standard_material(in, is_front);
-
-    #ifdef VERTEX_COLORS
-    let depth = bevy_pbr::prepass_utils::prepass_depth(in.position, sample_index);
-    if depth <= in.position.z {
-        // write vertex color to storage texture
-        let mipLevel = 0;
-        textureStore(
-            vertex_id_material,
-            vec2u(in.position.xy),
-            in.color
-            // vec4(in.color.r, 0., 0.,1.)
-        );
-    }
-    #endif
 
     // we can optionally modify the input before lighting and alpha_discard is applied
     // pbr_input.material.base_color.b = pbr_input.material.base_color.r;

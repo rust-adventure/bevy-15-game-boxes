@@ -36,12 +36,23 @@ struct PostProcessSettings {
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let dimensions = textureDimensions(vertex_id_texture);
 
+    let special = textureLoad(vertex_id_texture, vec2i(in.uv * vec2f(dimensions)), 1).r;
+
+    // 0. is a "no stroke" value
+    if special == 0. {
+        return textureSample(screen_texture, texture_sampler, in.uv);
+    }
+    // 1. is a "fill value"
+    if special == 1. {
+        return settings.stroke_color;
+    }
+
     let diff = sobel(
-            vertex_id_texture,
-            dimensions,
-            in.uv,
-            vec2u(settings.width, settings.width)
-        );
+        vertex_id_texture,
+        dimensions,
+        in.uv,
+        vec2u(settings.width, settings.width)
+    );
 
     // render just vertex storage texture
     // return textureLoad(vertex_id_texture, vec2u(in.uv * vec2f(dimensions)), 1);
@@ -54,7 +65,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     return mix(
         textureSample(screen_texture, texture_sampler, in.uv),
         settings.stroke_color,
-        step(0.01, diff)
+        step(0.001, diff)
     );
 
     // render just sobel 

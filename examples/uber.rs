@@ -1,15 +1,11 @@
 use bevy::{
-    asset::RenderAssetUsages,
     color::palettes::tailwind::*,
-    pbr::{
-        ExtendedMaterial, MaterialExtension,
-        OpaqueRendererMethod,
-    },
+    gltf::GltfPlugin,
+    pbr::ExtendedMaterial,
     prelude::*,
     render::{
         mesh::VertexAttributeValues,
         render_asset::RenderAssets,
-        render_resource::*,
         storage::{
             GpuShaderStorageBuffer, ShaderStorageBuffer,
         },
@@ -18,24 +14,40 @@ use bevy::{
 };
 use bevy_15_game::{
     materials::{
-        uber::{
-            new_vertex_color_image, ColorReveal,
-            UberMaterial, VertexColorSectionId,
-        },
+        uber::{ColorReveal, UberMaterial},
         MaterialsPlugin,
     },
     post_process::{
         PostProcessPlugin, PostProcessSettings,
     },
+    section_texture::{
+        DrawSection, SectionTexturePhasePlugin,
+        SectionsPrepass, ATTRIBUTE_SECTION_COLOR,
+    },
 };
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(AssetPlugin {
-        watch_for_changes_override: Some(true),
-        ..default()
-    }))
-    .add_plugins((PostProcessPlugin, MaterialsPlugin))
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                watch_for_changes_override: Some(true),
+                ..default()
+            })
+            .set(
+                GltfPlugin::default()
+                    // Map a custom glTF attribute name to a `MeshVertexAttribute`.
+                    .add_custom_vertex_attribute(
+                        "SECTION_COLOR",
+                        ATTRIBUTE_SECTION_COLOR,
+                    ),
+            ),
+    )
+    .add_plugins((
+        SectionTexturePhasePlugin,
+        PostProcessPlugin,
+        MaterialsPlugin,
+    ))
     .add_systems(Startup, setup)
     .add_systems(Update, move_color_reveals);
 
@@ -70,7 +82,6 @@ fn setup(
         >,
     >,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-    mut images: ResMut<Assets<Image>>,
     asset_server: Res<AssetServer>,
 ) {
     // Example data for the storage buffer
@@ -79,8 +90,6 @@ fn setup(
     let sdfs =
         buffers.add(ShaderStorageBuffer::from(sphere_data));
 
-    let image_handle = images.add(new_vertex_color_image());
-
     let uber_handle = UberMaterial {
         sdfs: sdfs,
         decals: None,
@@ -88,7 +97,6 @@ fn setup(
             asset_server
                 .load("textures/gritty_texture.png"),
         ),
-        storage_texture: image_handle.clone(),
     };
 
     // sphere
@@ -103,6 +111,7 @@ fn setup(
         })),
         Transform::from_xyz(2.0, 0.5, 0.0),
         ColorReveal::Red,
+        DrawSection,
     ));
 
     // circular base
@@ -118,6 +127,7 @@ fn setup(
         Transform::from_rotation(Quat::from_rotation_x(
             -std::f32::consts::FRAC_PI_2,
         )),
+        DrawSection,
     ));
     // cube
     let cube = {
@@ -140,10 +150,10 @@ fn setup(
                         [1., 0., 0., 1.]
                     }
                     (false, true, false) => {
-                        [0.02, 0., 0., 1.]
+                        [0.2, 0., 0., 1.]
                     }
                     (false, false, true) => {
-                        [0.06, 0., 0., 1.]
+                        [0.6, 0., 0., 1.]
                     }
                     _ => [0., 0., 0., 1.],
                 }
@@ -151,7 +161,7 @@ fn setup(
             .collect();
 
         mesh.with_inserted_attribute(
-            Mesh::ATTRIBUTE_COLOR,
+            ATTRIBUTE_SECTION_COLOR,
             colors,
         )
     };
@@ -165,6 +175,7 @@ fn setup(
             extension: uber_handle.clone(),
         })),
         Transform::from_xyz(-2.0, 0.5, 0.0),
+        DrawSection,
     ));
     // light
     commands.spawn((
@@ -179,11 +190,17 @@ fn setup(
         Camera3d::default(),
         Transform::from_xyz(-2.5, 4.5, 9.0)
             .looking_at(Vec3::ZERO, Vec3::Y),
+        Camera {
+            // SECTION TEXTURE ONLY WORKS WITH HDR CAMERAS
+            hdr: true,
+            ..default()
+        },
+        Msaa::Off,
         PostProcessSettings {
             stroke_color: Color::from(SLATE_50).into(),
             width: 2,
         },
-        VertexColorSectionId(image_handle),
+        SectionsPrepass,
     ));
 }
 

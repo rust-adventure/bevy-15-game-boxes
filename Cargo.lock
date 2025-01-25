@@ -445,6 +445,7 @@ dependencies = [
  "iyes_perf_ui",
  "iyes_progress",
  "leafwing-input-manager",
+ "nonmax",
  "serde",
  "serde_json",
 ]

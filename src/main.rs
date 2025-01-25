@@ -2,7 +2,7 @@ use avian3d::prelude::*;
 use bevy::{
     color::palettes::tailwind::*,
     core_pipeline::prepass::DepthPrepass,
-    gltf::GltfMeshExtras,
+    gltf::{GltfMeshExtras, GltfPlugin},
     pbr::ExtendedMaterial,
     prelude::*,
     render::{
@@ -14,24 +14,15 @@ use bevy::{
 use bevy_15_game::{
     blender_types::{
         BCollider, BColorReveal, BMeshExtras, BRigidBody,
-    },
-    camera::{CameraPlugin, PlayerCamera},
-    controls::{Action, ControlsPlugin},
-    dev::DevPlugin,
-    level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent},
-    materials::{
+    }, camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent}, materials::{
         uber::{
-            new_vertex_color_image, ColorReveal,
-            UberMaterial, VertexColorSectionId,
+            ColorReveal,
+            UberMaterial,
         },
         MaterialsPlugin,
-    },
-    post_process::{
+    }, post_process::{
         PostProcessPlugin, PostProcessSettings,
-    },
-    AudioAssets, BoxesGamePlugin, GltfAssets, Holding,
-    MyStates, OriginalTransform, OutOfBoundsBehavior,
-    OutOfBoundsMarker, Player, TextureAssets,
+    }, section_texture::{DrawSection, SectionTexturePhasePlugin, SectionsPrepass, ATTRIBUTE_SECTION_COLOR}, AudioAssets, BoxesGamePlugin, GltfAssets, Holding, MyStates, OriginalTransform, OutOfBoundsBehavior, OutOfBoundsMarker, Player, TextureAssets
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -47,7 +38,14 @@ fn main() {
         .add_plugins((
             bevy::remote::RemotePlugin::default(),
             bevy::remote::http::RemoteHttpPlugin::default(),
-            DefaultPlugins,
+            DefaultPlugins .set(
+                GltfPlugin::default()
+                    // Map a custom glTF attribute name to a `MeshVertexAttribute`.
+                    .add_custom_vertex_attribute(
+                        "SECTION_COLOR",
+                        ATTRIBUTE_SECTION_COLOR,
+                    ),
+            ),
             ProgressPlugin::<MyStates>::new()
                 .with_state_transition(
                     MyStates::AssetLoading,
@@ -56,6 +54,7 @@ fn main() {
             PhysicsPlugins::new(FixedPostUpdate),
         ))
         .add_plugins((
+            SectionTexturePhasePlugin,
             BoxesGamePlugin,
             CameraPlugin,
             ControlsPlugin,
@@ -64,6 +63,8 @@ fn main() {
             MaterialsPlugin,
             PlayerSpawnPlugin,
         ))
+        // Register DrawSection for all Mesh3ds
+        .register_required_components::<Mesh3d, DrawSection>()
         .init_state::<MyStates>()
         .add_loading_state(
             LoadingState::new(MyStates::AssetLoading)
@@ -83,6 +84,7 @@ fn main() {
             (
                 raycast_player.never_param_warn(),
                 // check_for_gltf_extras,
+                debug_mesh3d
             ),
         )
         // .add_systems(
@@ -100,11 +102,16 @@ fn main() {
         .run();
 }
 
+fn debug_mesh3d(query: Query<Option<&Name>, With<Mesh3d>>) {
+    for name in &query {
+        // info!(?name);
+    }
+}
+
 fn setup(
     mut commands: Commands,
     gltf_assets: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
-    mut images: ResMut<Assets<Image>>,
 ) {
     // spawn a camera to be able to see anything
     // commands.spawn(Camera2d);
@@ -113,16 +120,18 @@ fn setup(
         Transform::from_xyz(10., 15., 10.)
             .looking_at(Vec3::new(0.0, 2., 0.0), Vec3::Y),
         // OrderIndependentTransparencySettings::default(),
+        Camera{
+            hdr:true,
+            ..default()
+        },
         // Msaa currently doesn't work with OIT
-        // Msaa::Off,
+        Msaa::Off,
         PostProcessSettings {
-            stroke_color: Color::from(SLATE_50).into(),
+            stroke_color: Color::from(RED_400).into(),
             width: 2,
         },
-        VertexColorSectionId(
-            images.add(new_vertex_color_image()),
-        ),
-        DepthPrepass,
+        SectionsPrepass,
+        // DepthPrepass,
         PlayerCamera,
     ));
 
@@ -427,25 +436,40 @@ fn on_level_spawn(
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
     helper: TransformHelper,
-    vertex_color_images: Query<&VertexColorSectionId>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    query_meshes: Query<(&Name, &Mesh3d)>,
+    query_meshes: Query<(Entity, &Name, &Mesh3d)>,
 ) {
-    for (name, m3d) in query_meshes.iter() {
-        let Some(VertexAttributeValues::Float32x4(colors)) =
-            meshes
-                .get(&m3d.0)
-                .unwrap()
-                .attribute(Mesh::ATTRIBUTE_COLOR)
-        else {
-            continue;
-        };
-        println!("\n {name} {:?}", colors);
-    }
+//     for (entity, name, m3d) in query_meshes.iter() {
+//         // let Some(VertexAttributeValues::Float32x4(colors)) =
+//         //     meshes
+//         //         .get(&m3d.0)
+//         //         .unwrap()
+//         //         .attribute(Mesh::ATTRIBUTE_COLOR)
+//         // else {
+//         //     continue;
+//         // };
+//         // dbg!(name);
+// // [src/main.rs:452:9] name = "crate-cube-mesh.0"
+// // [src/main.rs:452:9] name = "crate-cube-mesh.1"
+// // [src/main.rs:452:9] name = "Cube.021"
+// // [src/main.rs:452:9] name = "Cube.020"
+// // [src/main.rs:452:9] name = "Cube.022"
+// // [src/main.rs:452:9] name = "PlatformMesh"
+// if [
+//     "crate-cube-mesh.0",
+//     "crate-cube-mesh.1",
+//     "Cube.021",
+//     "Cube.020",
+//     "Cube.022",
+//     "PlatformMesh"
+// ].contains(&name.as_str()){
+//         commands.entity(entity).insert(DrawSection);
+// }
+//         // println!("\n {name} {:?}", colors);
+//     }
 
-    let image_handle =
-        vertex_color_images.single().0.clone();
+  
 
     let sphere_data: Vec<[f32; 4]> = vec![];
 
@@ -459,55 +483,7 @@ fn on_level_spawn(
             asset_server
                 .load("textures/gritty_texture.png"),
         ),
-        storage_texture: image_handle,
     };
-
-    let cube = {
-        let mesh = Cuboid::default().mesh().build();
-        let Some(VertexAttributeValues::Float32x3(
-            positions,
-        )) = mesh.attribute(Mesh::ATTRIBUTE_NORMAL)
-        else {
-            return;
-        };
-
-        // all cube edges become lines
-        // cube normals are always 1 (or -1) on one axis
-        // and 0 on the other two axes
-        let colors: Vec<[f32; 4]> = positions
-            .iter()
-            .map(|[x, y, z]| {
-                match (*x != 0., *y != 0., *z != 0.) {
-                    (true, false, false) => {
-                        [1., 0., 0., 1.]
-                    }
-                    (false, true, false) => {
-                        [0.02, 0., 0., 1.]
-                    }
-                    (false, false, true) => {
-                        [0.06, 0., 0., 1.]
-                    }
-                    _ => [0., 0., 0., 1.],
-                }
-            })
-            .collect();
-
-        mesh.with_inserted_attribute(
-            Mesh::ATTRIBUTE_COLOR,
-            colors,
-        )
-    };
-    commands.spawn((
-        Mesh3d(meshes.add(cube)),
-        MeshMaterial3d(materials.add(ExtendedMaterial {
-            base: StandardMaterial {
-                base_color: BLUE_400.into(),
-                ..default()
-            },
-            extension: uber_handle.clone(),
-        })),
-        Transform::from_xyz(0.0, 0.5, 0.0),
-    ));
 
     for entity in
         children.iter_descendants(trigger.entity())
