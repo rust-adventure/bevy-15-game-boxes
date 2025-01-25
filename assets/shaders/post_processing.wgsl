@@ -29,43 +29,49 @@ struct PostProcessSettings {
 #endif
 }
 @group(0) @binding(2) var<uniform> settings: PostProcessSettings;
-@group(0) @binding(3) var vertex_id_texture: texture_2d<f32>;
-@group(0) @binding(4) var vertex_id_sampler: sampler;
+@group(0) @binding(3) var section_texture: texture_2d<f32>;
+// @group(0) @binding(4) var section_sampler: sampler;
 
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
-    let dimensions = textureDimensions(vertex_id_texture);
+    let dimensions = textureDimensions(section_texture);
 
-    let special = textureLoad(vertex_id_texture, vec2i(in.uv * vec2f(dimensions)), 1).r;
+    let special = textureLoad(section_texture, vec2i(in.uv * vec2f(dimensions)), 0).r;
 
     // 0. is a "no stroke" value
     if special == 0. {
         return textureSample(screen_texture, texture_sampler, in.uv);
     }
     // 1. is a "fill value"
-    if special == 1. {
+    // the fill threshold determines how close to 1.0
+    // the texture value needs to be to be considered a "filled"
+    // area that will be entirely the outline color.
+    // macos can be 
+    let fill_threshold = 0.01;
+    if abs(special - 1.0) < fill_threshold {
         return settings.stroke_color;
     }
 
     let diff = sobel(
-        vertex_id_texture,
+        section_texture,
         dimensions,
         in.uv,
         vec2u(settings.width, settings.width)
     );
 
-    // render just vertex storage texture
-    // return textureLoad(vertex_id_texture, vec2u(in.uv * vec2f(dimensions)), 1);
+    // render just section texture
+    // return textureLoad(section_texture, vec2u(in.uv * vec2f(dimensions)), 1);
 
     // use the differences to decide whether to show outline or not
     // step() is used to determine a cutoff for showing/not showing 
     // the outline.
     // without step() the diff would cause a intermediate mixing
     // resulting in subdued outlines.
+    let outline_threshold = 0.001;
     return mix(
         textureSample(screen_texture, texture_sampler, in.uv),
         settings.stroke_color,
-        step(0.001, diff)
+        step(outline_threshold, diff)
     );
 
     // render just sobel 
@@ -76,7 +82,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 // and compare to current pixel
 // then sum the differences
 fn sobel(
-    vertex_id_texture: texture_2d<f32>,
+    section_texture: texture_2d<f32>,
     dimensions: vec2u,
     uv: vec2f,
     offset: vec2u
@@ -84,19 +90,19 @@ fn sobel(
     let offseti: vec2i = vec2i(offset);
     let xy = vec2i(uv * vec2f(dimensions));
 
-    let px_center     : f32 = textureLoad(vertex_id_texture, xy, 1).r;
+    let px_center     : f32 = textureLoad(section_texture, xy, 0).r;
 
-    let px_left       : f32 = textureLoad(vertex_id_texture, xy + vec2i(-offseti.x, 0), 1).r;
-    let px_left_up    : f32 = textureLoad(vertex_id_texture, xy + vec2i(-offseti.x, 1), 1).r;
-    let px_left_down  : f32 = textureLoad(vertex_id_texture, xy + vec2i(-offseti.x, -offseti.y), 1).r;
+    let px_left       : f32 = textureLoad(section_texture, xy + vec2i(-offseti.x, 0), 0).r;
+    let px_left_up    : f32 = textureLoad(section_texture, xy + vec2i(-offseti.x, 1), 0).r;
+    let px_left_down  : f32 = textureLoad(section_texture, xy + vec2i(-offseti.x, -offseti.y), 0).r;
 
-    let px_up         : f32 = textureLoad(vertex_id_texture, xy + vec2i(0,offseti.y), 1).r;
+    let px_up         : f32 = textureLoad(section_texture, xy + vec2i(0,offseti.y), 0).r;
 
-    let px_right      : f32 = textureLoad(vertex_id_texture, xy + vec2i(offseti.x, 0), 1).r;
-    let px_right_up   : f32 = textureLoad(vertex_id_texture, xy + vec2i(offseti.x, offseti.y), 1).r;
-    let px_right_down : f32 = textureLoad(vertex_id_texture, xy + vec2i(offseti.x, -offseti.y), 1).r;
+    let px_right      : f32 = textureLoad(section_texture, xy + vec2i(offseti.x, 0), 0).r;
+    let px_right_up   : f32 = textureLoad(section_texture, xy + vec2i(offseti.x, offseti.y), 0).r;
+    let px_right_down : f32 = textureLoad(section_texture, xy + vec2i(offseti.x, -offseti.y), 0).r;
 
-    let px_down       : f32 = textureLoad(vertex_id_texture, xy + vec2i(0, -offseti.y), 1).r;
+    let px_down       : f32 = textureLoad(section_texture, xy + vec2i(0, -offseti.y), 0).r;
 
     return max(
         abs(
@@ -119,18 +125,19 @@ fn sobel(
 }
 
 // sample using roberts cross
+// currently unused
 fn roberts(
-    vertex_id_texture: texture_2d<f32>,
+    section_texture: texture_2d<f32>,
     dimensions: vec2u,
     uv: vec2f,
     offset: vec3u
 ) -> f32 {
     let xy = vec2u(uv * vec2f(dimensions));
-    let px_center: f32 = textureLoad(vertex_id_texture, xy, 1).r;
-    let px_left  : f32 = textureLoad(vertex_id_texture, xy - offset.xz, 1).r;
-    let px_right : f32 = textureLoad(vertex_id_texture, xy + offset.xz, 1).r;
-    let px_up    : f32 = textureLoad(vertex_id_texture, xy + offset.zy, 1).r;
-    let px_down  : f32 = textureLoad(vertex_id_texture, xy - offset.zy, 1).r;
+    let px_center: f32 = textureLoad(section_texture, xy, 0).r;
+    let px_left  : f32 = textureLoad(section_texture, xy - offset.xz, 0).r;
+    let px_right : f32 = textureLoad(section_texture, xy + offset.xz, 0).r;
+    let px_up    : f32 = textureLoad(section_texture, xy + offset.zy, 0).r;
+    let px_down  : f32 = textureLoad(section_texture, xy - offset.zy, 0).r;
 
     return abs(px_left - px_center)  +
            abs(px_right - px_center) +
