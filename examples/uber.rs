@@ -5,11 +5,7 @@ use bevy::{
     prelude::*,
     render::{
         mesh::VertexAttributeValues,
-        render_asset::RenderAssets,
-        storage::{
-            GpuShaderStorageBuffer, ShaderStorageBuffer,
-        },
-        Render, RenderApp,
+        storage::ShaderStorageBuffer,
     },
 };
 use bevy_15_game::{
@@ -27,47 +23,30 @@ use bevy_15_game::{
 };
 
 fn main() {
-    let mut app = App::new();
-    app.add_plugins(
-        DefaultPlugins
-            .set(AssetPlugin {
-                watch_for_changes_override: Some(true),
-                ..default()
-            })
-            .set(
-                GltfPlugin::default()
-                    // Map a custom glTF attribute name to a `MeshVertexAttribute`.
-                    .add_custom_vertex_attribute(
-                        "SECTION_COLOR",
-                        ATTRIBUTE_SECTION_COLOR,
-                    ),
-            ),
-    )
-    .add_plugins((
-        SectionTexturePhasePlugin,
-        PostProcessPlugin,
-        MaterialsPlugin,
-    ))
-    .add_systems(Startup, setup)
-    .add_systems(Update, move_color_reveals);
-
-    let render_app = app.sub_app_mut(RenderApp);
-    render_app.add_systems(Render, debug_render);
-
-    app.run();
-}
-
-fn debug_render(
-    buffers: Res<RenderAssets<GpuShaderStorageBuffer>>,
-) {
-    // println!("render");
-    for (_, buffer) in buffers.iter() {
-        // println!(
-        //     "{:?}, {:?}",
-        //     buffer.buffer.id(),
-        //     buffer.buffer.size()
-        // );
-    }
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes_override: Some(true),
+                    ..default()
+                })
+                .set(
+                    GltfPlugin::default()
+                        // Map a custom glTF attribute name to a `MeshVertexAttribute`.
+                        .add_custom_vertex_attribute(
+                            "SECTION_COLOR",
+                            ATTRIBUTE_SECTION_COLOR,
+                        ),
+                ),
+        )
+        .add_plugins((
+            SectionTexturePhasePlugin,
+            PostProcessPlugin,
+            MaterialsPlugin,
+        ))
+        .add_systems(Startup, setup)
+        .add_systems(Update, move_color_reveals)
+        .run();
 }
 
 fn setup(

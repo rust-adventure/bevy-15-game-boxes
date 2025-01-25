@@ -1,23 +1,12 @@
 use bevy::{
-    asset::{load_internal_asset, RenderAssetUsages},
     pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
     render::{
-        extract_component::{
-            ExtractComponent, ExtractComponentPlugin,
-        },
-        render_resource::{
-            AsBindGroup, Extent3d, ShaderRef,
-            TextureDimension, TextureFormat, TextureUsages,
-        },
+        render_resource::{AsBindGroup, ShaderRef},
         storage::ShaderStorageBuffer,
     },
-    window::PrimaryWindow,
 };
 use itertools::Itertools;
-
-const PBR_FRAGMENT_REPLACEMENT: Handle<Shader> =
-    Handle::weak_from_u128(11924612342344596158);
 
 pub struct UberMaterialPlugin;
 
@@ -31,16 +20,6 @@ impl Plugin for UberMaterialPlugin {
                 >,
             >::default())
             .add_systems(First, pack_color_reveal_buffer);
-
-        // load the custom replacement for
-        // bevy_pbr::pbr_fragment that removes
-        // vertex coloring
-        load_internal_asset!(
-            app,
-            PBR_FRAGMENT_REPLACEMENT,
-            "custom_pbr_fragment.wgsl",
-            Shader::from_wgsl
-        );
     }
 }
 

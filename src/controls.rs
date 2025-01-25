@@ -96,7 +96,6 @@ fn apply_controls(
     >,
     camera_rig: Single<&CameraRig>,
 ) {
-    let mut direction = Vec3::ZERO;
 
     let axis_pair =
         action_state.clamped_axis_pair(&Action::Move);
@@ -106,7 +105,7 @@ fn apply_controls(
     let horizontal =
         camera_transform.right().xz() * axis_pair.x;
     let force = forward + horizontal;
-    direction = Vec3::new(force.x, 0., force.y);
+    let direction = Vec3::new(force.x, 0., force.y);
 
     let looking_direction =
         Quat::from_rotation_y(-camera_rig.yaw)

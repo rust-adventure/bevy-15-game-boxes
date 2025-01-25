@@ -821,8 +821,8 @@ impl ViewNode for CustomDrawNode {
 
         // This will generate a task to generate the command buffer in parallel
         render_context.add_command_buffer_generation_task(move |render_device| {
-            #[cfg(feature = "trace")]
-            let _ = info_span!("custom_section_pass").entered();
+            // #[cfg(feature = "trace")]
+            // let _ = info_span!("custom_section_pass").entered();
 
             // Command encoder setup
             let mut command_encoder =
@@ -974,7 +974,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P>
 
         pass.set_bind_group(
             I,
-            &section_groups.0.as_ref().unwrap(),
+            section_groups.0.as_ref().unwrap(),
             &[item_query.unwrap().index()],
         );
 

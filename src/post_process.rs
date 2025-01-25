@@ -370,10 +370,10 @@ pub struct PostProcessSettings {
     // _webgl2_padding: Vec3,
 }
 
-/// What should the post-process display.
-/// TODO: can we shader def this in?
-enum PostProcessDisplay {
-    Default,
-    SobelOnly,
-    SectionTextureOnly,
-}
+// What should the post-process display.
+// TODO: can we shader def this in?
+// enum PostProcessDisplay {
+//     Default,
+//     SobelOnly,
+//     SectionTextureOnly,
+// }
