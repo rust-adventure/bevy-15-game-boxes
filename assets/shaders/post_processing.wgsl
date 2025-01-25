@@ -49,7 +49,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // macos can be exactly 1.0 but windows/linux need 
     // a threshold
     let fill_threshold = 0.01;
-    if abs(special - 1.0) < fill_threshold {
+    if special > 1.0 - fill_threshold && special < 1.0 + fill_threshold {
         return settings.stroke_color;
     }
 

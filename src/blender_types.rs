@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::OutOfBoundsBehavior;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BMeshExtras {
     pub rigid_body: Option<BRigidBody>,
     pub collider: Option<BCollider>,
@@ -13,23 +13,35 @@ pub struct BMeshExtras {
     pub is_spawn_point: bool,
     pub color_reveal: Option<BColorReveal>,
     pub out_of_bounds_behavior: Option<OutOfBoundsBehavior>,
+    #[serde(default)]
+    pub hold_point: bool,
+    #[serde(default)]
+    pub goal: bool,
+    #[serde(default)]
+    pub target: bool,
+    pub material: Option<BMaterial>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BCollider {
     TrimeshFromMesh,
     Cuboid,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BRigidBody {
     Static,
     Dynamic,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BColorReveal {
     Red,
     Green,
     Blue,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum BMaterial {
+    Goal,
 }

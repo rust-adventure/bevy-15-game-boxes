@@ -6,6 +6,7 @@ pub mod level_spawn;
 pub mod materials;
 pub mod post_process;
 pub mod section_texture;
+pub mod test_gltf_extras_components;
 
 use avian3d::prelude::{
     AngularVelocity, Collision, LinearVelocity,
@@ -19,9 +20,35 @@ pub struct BoxesGamePlugin;
 
 impl Plugin for BoxesGamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, respawn_important_stuff);
+        app.add_event::<GoalEvent>()
+            .register_type::<HoldPoint>()
+            .add_systems(
+                Update,
+                (
+                    respawn_important_stuff,
+                    detect_goal_events,
+                ),
+            )
+            .add_observer(
+                |trigger: Trigger<GoalEvent>,
+                 mut commands: Commands| {
+                    // commands.
+                    let event = trigger.event();
+                    commands
+                        .entity(event.target)
+                        .despawn_recursive();
+                },
+            );
     }
 }
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct HoldPoint;
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct Goal;
 
 #[derive(Component)]
 pub struct Player;
@@ -127,10 +154,6 @@ fn respawn_important_stuff(
                 }
             }
         }
-        // println!(
-        //     "Entities {} and {} are colliding",
-        //     contacts.entity1, contacts.entity2,
-        // );
     }
 }
 
@@ -140,8 +163,52 @@ pub struct OutOfBoundsMarker;
 #[derive(Component)]
 pub struct OriginalTransform(pub GlobalTransform);
 
-#[derive(Component, Serialize, Deserialize, Clone)]
+#[derive(
+    Debug, Component, Serialize, Deserialize, Clone,
+)]
 pub enum OutOfBoundsBehavior {
     Respawn,
     Despawn,
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct Target;
+
+fn detect_goal_events(
+    mut collision_event_reader: EventReader<Collision>,
+    goal_sensors: Query<Entity, With<Goal>>,
+    targets: Query<&Target>,
+    mut commands: Commands,
+) {
+    for Collision(contacts) in collision_event_reader.read()
+    {
+        if contacts.is_sensor
+            && [contacts.entity1, contacts.entity2]
+                .iter()
+                .any(|e| targets.get(*e).is_ok())
+            && [contacts.entity1, contacts.entity2]
+                .iter()
+                .any(|e| goal_sensors.get(*e).is_ok())
+        // todo: and that target matches that goal
+        {
+            if targets.get(contacts.entity1).is_ok() {
+                commands.trigger(GoalEvent {
+                    target: contacts.entity1,
+                    goal: contacts.entity2,
+                });
+            } else {
+                commands.trigger(GoalEvent {
+                    target: contacts.entity2,
+                    goal: contacts.entity1,
+                });
+            }
+        }
+    }
+}
+
+#[derive(Event, Reflect)]
+pub struct GoalEvent {
+    target: Entity,
+    goal: Entity,
 }

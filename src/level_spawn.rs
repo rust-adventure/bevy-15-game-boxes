@@ -9,7 +9,8 @@ use leafwing_input_manager::{
 };
 
 use crate::{
-    controls::Action, GltfAssets, Holding, Player,
+    controls::Action, GltfAssets, Holding,
+    OriginalTransform, OutOfBoundsBehavior, Player,
 };
 
 pub struct PlayerSpawnPlugin;
@@ -86,7 +87,7 @@ fn on_spawn_player(
             // will still get rotated before it can do so.
             // By locking the rotation we can prevent this.
             LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
-            position,
+            position.clone(),
             //Vec3::new(0., 0.25, 0.25),
             // RayCaster::new(Vec3::ZERO, Dir3::X),
             ShapeCaster::new(
@@ -100,6 +101,8 @@ fn on_spawn_player(
             // Describes how to convert from player inputs
             // into those actions
             InputManagerBundle::with_map(input_map),
+            OriginalTransform(position.into()),
+            OutOfBoundsBehavior::Respawn,
             Holding(None),
             Player,
         ));

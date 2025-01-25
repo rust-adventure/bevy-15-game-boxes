@@ -1,24 +1,23 @@
 use avian3d::prelude::*;
 use bevy::{
     color::palettes::tailwind::*,
-    gltf::{GltfMeshExtras, GltfPlugin},
-    pbr::ExtendedMaterial,
+    gltf::{GltfMaterialExtras, GltfMeshExtras, GltfPlugin},
+    pbr::{ExtendedMaterial, NotShadowCaster, NotShadowReceiver},
     prelude::*,
     render::storage::ShaderStorageBuffer,
     scene::SceneInstanceReady,
 };
 use bevy_15_game::{
     blender_types::{
-        BCollider, BColorReveal, BMeshExtras, BRigidBody,
+        BCollider, BColorReveal, BMaterial, BMeshExtras, BRigidBody
     }, camera::{CameraPlugin, PlayerCamera}, controls::{Action, ControlsPlugin}, dev::DevPlugin, level_spawn::{PlayerSpawnPlugin, SpawnPlayerEvent}, materials::{
-        uber::{
+        goal::GoalMaterial, uber::{
             ColorReveal,
             UberMaterial,
-        },
-        MaterialsPlugin,
+        }, MaterialsPlugin
     }, post_process::{
         PostProcessPlugin, PostProcessSettings,
-    }, section_texture::{DrawSection, SectionTexturePhasePlugin, SectionsPrepass, ATTRIBUTE_SECTION_COLOR}, AudioAssets, BoxesGamePlugin, GltfAssets, Holding, MyStates, OriginalTransform, OutOfBoundsBehavior, OutOfBoundsMarker, Player, TextureAssets
+    }, section_texture::{DrawSection, SectionTexturePhasePlugin, SectionsPrepass, ATTRIBUTE_SECTION_COLOR}, test_gltf_extras_components::TestGltfExtrasComponentsPlugin, AudioAssets, BoxesGamePlugin, GltfAssets, Goal, HoldPoint, Holding, MyStates, OriginalTransform, OutOfBoundsBehavior, OutOfBoundsMarker, Player, Target, TextureAssets
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
@@ -49,6 +48,7 @@ fn main() {
                 ),
             PhysicsPlugins::new(FixedPostUpdate),
         ))
+        .add_plugins(TestGltfExtrasComponentsPlugin)
         .add_plugins((
             SectionTexturePhasePlugin,
             BoxesGamePlugin,
@@ -156,7 +156,7 @@ fn setup(
         .spawn((
             Name::new("Level"),
             SceneRoot(
-                misc.named_scenes["level.001"].clone(),
+                misc.named_scenes["level.002"].clone(),
             ),
         ))
         .observe(on_level_spawn);
@@ -183,6 +183,7 @@ fn raycast_player(
     mut transforms: Query<&mut Transform>,
     named_entities: Query<(Entity, &Name)>,
     children: Query<&Children>,
+    hold_points: Query<(), With<HoldPoint>>,
     // collider_transforms: Query<&ColliderTransform>,
     // collider_info: Query<(&RigidBody, &Collider)>,
 ) {
@@ -219,12 +220,8 @@ fn raycast_player(
         // held
         let Some(hold_point) = children
             .iter_descendants(hit.entity)
-            .find_map(|e| match named_entities.get(e) {
-                Ok((entity, name))
-                    if name.as_str() == "HoldPoint" =>
-                {
-                    transforms.get(entity).ok()
-                }
+            .find_map(|entity| match hold_points.get(entity) {
+                Ok(_) => transforms.get(entity).ok(),
                 _ => None,
             })
             .map(|transform| transform.translation)
@@ -334,7 +331,7 @@ fn on_level_spawn(
             >,
         >,
     >,
-    std_materials: Res<Assets<StandardMaterial>>,
+    mut std_materials: ResMut<Assets<StandardMaterial>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     children: Query<&Children>,
     entities_with_std_mat: Query<
@@ -342,8 +339,12 @@ fn on_level_spawn(
     >,
     mesh_extras: Query<(Entity, &GltfMeshExtras)>,
     gltf_extras: Query<(Entity, &GltfExtras)>,
+    gltf_material_extras: Query<(Entity, &GltfMaterialExtras)>,
     helper: TransformHelper,
     asset_server: Res<AssetServer>,
+    mut materials_goal: ResMut<
+        Assets<GoalMaterial>,
+    >,
 ) {
 
 
@@ -364,6 +365,7 @@ fn on_level_spawn(
     for entity in
         children.iter_descendants(trigger.entity())
     {
+          
         // mesh_extras handling
         if let Ok((_, gltf_mesh_extras)) =
             mesh_extras.get(entity)
@@ -477,8 +479,60 @@ fn on_level_spawn(
                             },
                         );
                     }
+
+                    if d.hold_point {
+                        commands.entity(entity).insert(HoldPoint);
+                    }
+                    if d.goal {
+                        commands.entity(entity).insert((
+                            Goal,
+                            Sensor
+                        ));
+                    }
+                    if d.target {
+                        commands.entity(entity).insert((
+                            Target,
+                        ));
+                    }
                 }
             }
+        }
+
+
+        let mut added = false;
+        // material extras handling
+        if let Ok((_, content)) =
+            gltf_material_extras.get(entity)
+        {
+            let data = serde_json::from_str::<BMeshExtras>(
+                &content.value,
+            );
+            // 
+            if let Ok(data) = data {
+                if let Some(mat) = data.material {
+                    match mat {
+                        BMaterial::Goal => {
+                            added = true;
+                            commands.entity(entity)
+                            .remove::<MeshMaterial3d<StandardMaterial>>()
+                            .remove::<DrawSection>()
+                            .insert((
+                                MeshMaterial3d(materials_goal.add(
+                                    GoalMaterial {
+                                        color: LinearRgba::BLUE,
+                                        color_texture: None,
+                                        alpha_mode:
+                                            AlphaMode::Blend,
+                                    },
+                                )),
+                                NotShadowReceiver,
+                                NotShadowCaster
+                            ));
+                        },
+                    }
+                }
+            }
+            
         }
 
         // shader swap
@@ -487,6 +541,7 @@ fn on_level_spawn(
             continue;
         };
 
+        if !added  {
         let old_mat = std_materials.get(&mat.0).unwrap();
         let new_mat = materials.add(ExtendedMaterial {
             base: old_mat.clone(),
@@ -496,5 +551,7 @@ fn on_level_spawn(
             .entity(entity)
             .remove::<MeshMaterial3d<StandardMaterial>>()
             .insert(MeshMaterial3d(new_mat));
+    }
+
     }
 }
