@@ -46,7 +46,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // the fill threshold determines how close to 1.0
     // the texture value needs to be to be considered a "filled"
     // area that will be entirely the outline color.
-    // macos can be 
+    // macos can be exactly 1.0 but windows/linux need 
+    // a threshold
     let fill_threshold = 0.01;
     if abs(special - 1.0) < fill_threshold {
         return settings.stroke_color;
