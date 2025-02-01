@@ -96,7 +96,6 @@ fn apply_controls(
     >,
     camera_rig: Single<&CameraRig>,
 ) {
-
     let axis_pair =
         action_state.clamped_axis_pair(&Action::Move);
 

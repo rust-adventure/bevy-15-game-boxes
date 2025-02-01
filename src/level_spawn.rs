@@ -8,8 +8,10 @@ use leafwing_input_manager::{
     prelude::*, InputManagerBundle,
 };
 
+mod on_level_spawn;
+
 use crate::{
-    controls::Action, GltfAssets, Holding,
+    controls::Action, AppState, GltfAssets, Holding,
     OriginalTransform, OutOfBoundsBehavior, Player,
 };
 
@@ -18,8 +20,76 @@ pub struct PlayerSpawnPlugin;
 impl Plugin for PlayerSpawnPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<SpawnPlayerEvent>()
-            .add_observer(on_spawn_player);
+            .add_sub_state::<LevelState>()
+            .enable_state_scoped_entities::<LevelState>()
+            .add_observer(on_spawn_player)
+            .add_systems(
+                OnEnter(LevelState::Loading),
+                setup_level,
+            )
+            .add_systems(
+                OnEnter(LevelState::Level),
+                spawn_level,
+            );
     }
+}
+
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+pub struct CurrentLevel(pub String);
+
+impl Default for CurrentLevel {
+    fn default() -> Self {
+        Self("level.002".to_string())
+    }
+}
+
+#[derive(
+    Clone, Eq, PartialEq, Default, Debug, Hash, SubStates,
+)]
+#[source(AppState = AppState::Playing)]
+pub enum LevelState {
+    // TODO: implement loading state for new levels
+    #[default]
+    Loading,
+    Level,
+    Win,
+}
+
+fn setup_level(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<LevelState>>,
+    current_level: Option<Res<CurrentLevel>>,
+) {
+    // if there is already a CurrentLevel to go to, go to
+    // that level, otherwise go to "the default level"
+    if current_level.is_none() {
+        commands.insert_resource(CurrentLevel::default());
+    };
+    next_state.set(LevelState::Level);
+}
+
+fn spawn_level(
+    mut commands: Commands,
+    gltf_assets: Res<GltfAssets>,
+    gltfs: Res<Assets<Gltf>>,
+    current_level: Res<CurrentLevel>,
+) {
+    let Some(misc) = gltfs.get(&gltf_assets.misc) else {
+        error!("no misc handle in gltfs");
+        return;
+    };
+
+    commands
+        .spawn((
+            StateScoped(LevelState::Level),
+            Name::new("Level"),
+            SceneRoot(
+                misc.named_scenes[&*current_level.0]
+                    .clone(),
+            ),
+        ))
+        .observe(on_level_spawn::on_level_spawn);
 }
 
 fn on_spawn_player(
@@ -69,6 +139,7 @@ fn on_spawn_player(
         position.translation.y += 10.;
 
         commands.spawn((
+            StateScoped(LevelState::Level),
             Name::new("Character"),
             SceneRoot(character.clone()),
             // The player character needs to be configured

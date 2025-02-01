@@ -32,7 +32,8 @@ fn main() {
                 })
                 .set(
                     GltfPlugin::default()
-                        // Map a custom glTF attribute name to a `MeshVertexAttribute`.
+                        // Map a custom glTF attribute name
+                        // to a `MeshVertexAttribute`.
                         .add_custom_vertex_attribute(
                             "SECTION_COLOR",
                             ATTRIBUTE_SECTION_COLOR,

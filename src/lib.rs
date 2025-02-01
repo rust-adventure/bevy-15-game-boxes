@@ -14,6 +14,7 @@ use avian3d::prelude::{
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use iyes_progress::Progress;
+use level_spawn::{CurrentLevel, LevelState};
 use serde::{Deserialize, Serialize};
 
 pub struct BoxesGamePlugin;
@@ -31,12 +32,19 @@ impl Plugin for BoxesGamePlugin {
             )
             .add_observer(
                 |trigger: Trigger<GoalEvent>,
-                 mut commands: Commands| {
-                    // commands.
-                    let event = trigger.event();
-                    commands
-                        .entity(event.target)
-                        .despawn_recursive();
+                 mut commands: Commands,
+                 mut next_state: ResMut<
+                    NextState<LevelState>,
+                >| {
+                    warn!("running crate despawn");
+                    commands.insert_resource(CurrentLevel(
+                        "level.001".to_string(),
+                    ));
+                    next_state.set(LevelState::Loading);
+                    // let event = trigger.event();
+                    // commands
+                    //     .entity(event.target)
+                    //     .despawn_recursive();
                 },
             );
     }
@@ -56,10 +64,10 @@ pub struct Player;
 #[derive(
     Clone, Eq, PartialEq, Debug, Hash, Default, States,
 )]
-pub enum MyStates {
+pub enum AppState {
     #[default]
-    AssetLoading,
-    Next,
+    AppLoad,
+    Playing,
 }
 
 // Time in seconds to complete a custom
@@ -181,6 +189,9 @@ fn detect_goal_events(
     targets: Query<&Target>,
     mut commands: Commands,
 ) {
+    // TODO: build up unique GoalEvents and send one GoalEvent per pair
+    // this will fix a panic in the GoalEvent observer which tries to
+    // despawn an already-despawned entity
     for Collision(contacts) in collision_event_reader.read()
     {
         if contacts.is_sensor
