@@ -1,3 +1,4 @@
+use avian3d::math::PI;
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
@@ -7,8 +8,9 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerCameraSettings>()
-            .register_type::<PlayerCameraSettings>()
+        app
+            // .init_resource::<PlayerCameraSettings>()
+            //     .register_type::<PlayerCameraSettings>()
             .register_type::<CameraRig>()
             .add_systems(
                 FixedUpdate,
@@ -21,20 +23,20 @@ impl Plugin for CameraPlugin {
 #[require(CameraRig)]
 pub struct PlayerCamera;
 
-#[derive(Resource, Reflect)]
-#[reflect(Resource)]
-struct PlayerCameraSettings {
-    offset: Vec3,
-    decay: f32,
-}
-impl Default for PlayerCameraSettings {
-    fn default() -> Self {
-        Self {
-            offset: Vec3::new(6.9, 4.1, 6.9),
-            decay: 4.,
-        }
-    }
-}
+// #[derive(Resource, Reflect)]
+// #[reflect(Resource)]
+// struct PlayerCameraSettings {
+//     offset: Vec3,
+//     decay: f32,
+// }
+// impl Default for PlayerCameraSettings {
+//     fn default() -> Self {
+//         Self {
+//             offset: Vec3::new(6.9, 4.1, 6.9),
+//             decay: 4.,
+//         }
+//     }
+// }
 
 fn control_camera(
     camera: Single<
@@ -49,16 +51,17 @@ fn control_camera(
             // TODO: .clamp is to prevent camera rotating
             // through ground
             // is not a permanent solution
-            rig.pitch.clamp(0., FRAC_PI_2),
+            rig.pitch, //.clamp(0., FRAC_PI_2),
         )
-        * Vec3::Z;
+        * Vec3::NEG_Z;
+
     transform.translation =
         rig.target - rig.distance * looking_direction;
     transform.look_at(rig.target, Dir3::Y);
 }
 
 /// Camera movement component.
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
 pub struct CameraRig {
     /// Rotation around the vertical axis of the
@@ -81,7 +84,7 @@ pub struct CameraRig {
 impl Default for CameraRig {
     fn default() -> Self {
         Self {
-            yaw: 0.56,
+            yaw: PI,
             pitch: 0.45,
             distance: 12.0,
             target: Vec3::ZERO,

@@ -11,8 +11,9 @@ use leafwing_input_manager::{
 mod on_level_spawn;
 
 use crate::{
-    controls::Action, AppState, GltfAssets, Holding,
-    OriginalTransform, OutOfBoundsBehavior, Player,
+    camera::CameraRig, controls::Action, AppState,
+    GltfAssets, Holding, OriginalTransform,
+    OutOfBoundsBehavior, Player,
 };
 
 pub struct PlayerSpawnPlugin;
@@ -98,6 +99,7 @@ fn on_spawn_player(
     gltf_assets: Res<GltfAssets>,
     gltfs: Res<Assets<Gltf>>,
     helper: TransformHelper,
+    mut camera_rig: Single<&mut CameraRig>,
 ) {
     let Ok(transform) = helper.compute_global_transform(
         trigger.spawn_point_entity,
@@ -137,6 +139,13 @@ fn on_spawn_player(
     // misc.named_scenes.get("CharacterBlob")
     {
         let mut position = transform.compute_transform();
+
+        // get the rotation of the spawn point empty
+        // and store it in the camera_rig yaw so that the
+        // player faces the right direction when spawned
+        camera_rig.yaw =
+            position.rotation.to_euler(EulerRot::XYZ).1;
+
         position.translation.y += 10.;
 
         commands.spawn((

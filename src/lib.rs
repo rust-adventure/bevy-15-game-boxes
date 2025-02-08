@@ -14,6 +14,7 @@ use avian3d::prelude::{
 };
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
+use camera::CameraRig;
 use iyes_progress::Progress;
 use level_spawn::{CurrentLevel, LevelState};
 use serde::{Deserialize, Serialize};
@@ -120,6 +121,8 @@ fn respawn_important_stuff(
         Option<&OriginalTransform>,
     )>,
     mut commands: Commands,
+    players: Query<(), With<Player>>,
+    mut camera_rig: Option<Single<&mut CameraRig>>,
 ) {
     for Collision(contacts) in collision_event_reader.read()
     {
@@ -148,6 +151,25 @@ fn respawn_important_stuff(
                             LinearVelocity::default(),
                             transform.0.compute_transform(),
                         ));
+
+                        if players.get(*entity).is_ok() {
+                            if let Some(
+                                ref mut camera_rig,
+                            ) = camera_rig
+                            {
+                                // get the rotation of the spawn point empty
+                                // and store it in the camera_rig yaw so that the
+                                // player faces the right direction when spawned
+                                camera_rig.yaw = transform
+                                    .0
+                                    .compute_transform()
+                                    .rotation
+                                    .to_euler(EulerRot::XYZ)
+                                    .1;
+                            } else {
+                                warn!("Tried to respawn player with no camera rig");
+                            }
+                        }
                     }
                     (
                         OutOfBoundsBehavior::Respawn,

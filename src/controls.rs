@@ -72,7 +72,7 @@ fn handle_pantilt(
     camera_rig.yaw += axis_pair.x / 90.;
     camera_rig.pitch += axis_pair.y / 90.;
     camera_rig.pitch =
-        camera_rig.pitch.clamp(0., FRAC_PI_4);
+        camera_rig.pitch.clamp(-FRAC_PI_4, 0.);
 }
 
 fn target_camera_to_player(
@@ -109,7 +109,7 @@ fn apply_controls(
     let looking_direction =
         Quat::from_rotation_y(-camera_rig.yaw)
             * Quat::from_rotation_x(camera_rig.pitch)
-            * Vec3::Z;
+            * Vec3::NEG_Z;
 
     let (mut controller, holding) = player.into_inner();
 
