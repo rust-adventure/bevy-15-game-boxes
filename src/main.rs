@@ -1,7 +1,12 @@
 use avian3d::prelude::*;
 use bevy::{
-    color::palettes::tailwind::*, gltf::GltfPlugin,
+    color::palettes::tailwind::*,
+    diagnostic::{
+        DiagnosticsStore, FrameTimeDiagnosticsPlugin,
+    },
+    gltf::GltfPlugin,
     prelude::*,
+    render::view::RenderLayers,
 };
 use bevy_15_game::{
     camera::{CameraPlugin, PlayerCamera},
@@ -9,6 +14,7 @@ use bevy_15_game::{
     dev::DevPlugin,
     level_spawn::PlayerSpawnPlugin,
     materials::MaterialsPlugin,
+    platforms::PlatformsPlugin,
     post_process::{
         PostProcessPlugin, PostProcessSettings,
     },
@@ -17,17 +23,20 @@ use bevy_15_game::{
         SectionsPrepass, ATTRIBUTE_SECTION_COLOR,
     },
     test_gltf_extras_components::TestGltfExtrasComponentsPlugin,
-    AppState, AudioAssets, BoxesGamePlugin, GltfAssets,
-    HoldPoint, Holding, OutOfBoundsMarker, Player,
-    TextureAssets,
+    track_fake_long_task, AppState, AudioAssets,
+    BoxesGamePlugin, GltfAssets, HoldPoint, Holding,
+    OutOfBoundsMarker, Player, TextureAssets,
 };
 use bevy_asset_loader::loading_state::{
     config::ConfigureLoadingState, LoadingState,
-    LoadingStateAppExt,
+    LoadingStateAppExt, LoadingStateSet,
 };
-use iyes_progress::ProgressPlugin;
+use iyes_progress::{
+    ProgressPlugin, ProgressReturningSystem,
+    ProgressTracker,
+};
 use leafwing_input_manager::prelude::*;
-use std::f32::consts::FRAC_PI_4;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8};
 
 fn main() {
     App::new()
@@ -60,6 +69,7 @@ fn main() {
             PostProcessPlugin,
             MaterialsPlugin,
             PlayerSpawnPlugin,
+            PlatformsPlugin,
         ))
         // Register DrawSection for all Mesh3ds
         .register_required_components::<Mesh3d, DrawSection>()
@@ -84,10 +94,10 @@ fn main() {
             ),
         )
         // .add_systems(
-        //     (
-        //         track_fake_long_task
+        //         Update,
+        //       (  track_fake_long_task
         //             .track_progress::<AppState>(),
-        //         // print_progress,
+        //         print_progress,
         //     )
         //         .chain()
         //         .run_if(in_state(AppState::AppLoad))
@@ -96,6 +106,25 @@ fn main() {
         //         )),
         // )
         .run();
+}
+
+fn print_progress(
+    progress: Res<ProgressTracker<AppState>>,
+    diagnostics: Res<DiagnosticsStore>,
+    mut last_done: Local<u32>,
+) {
+    let progress = progress.get_global_progress();
+    if progress.done > *last_done {
+        *last_done = progress.done;
+        info!(
+            "[Frame {}] Changed progress: {:?}",
+            diagnostics
+                .get(&FrameTimeDiagnosticsPlugin::FRAME_COUNT)
+                .map(|diagnostic| diagnostic.value().unwrap_or(0.))
+                .unwrap_or(0.),
+            progress
+        );
+    }
 }
 
 fn setup(
@@ -131,8 +160,10 @@ fn setup(
             ..default()
         },
         Transform {
-            translation: Vec3::new(0.0, 2.0, 0.0),
-            rotation: Quat::from_rotation_x(-FRAC_PI_4),
+            translation: Vec3::new(0.0, 5.0, 0.0),
+            rotation: Quat::from_rotation_y(-FRAC_PI_8)
+                + Quat::from_rotation_x(-FRAC_PI_4),
+            // rotation: Quat::from_rotation_x(-FRAC_PI_4),
             ..default()
         },
         // This is a relatively small scene, so use tighter
@@ -140,12 +171,12 @@ fn setup(
         // for better quality. We also adjusted the
         // shadow map to be larger since we're only
         // using a single cascade.
-        // CascadeShadowConfigBuilder {
-        //     num_cascades: 1,
-        //     maximum_distance: 1.6,
-        //     ..default()
-        // }
-        // .build(),
+        bevy::pbr::CascadeShadowConfigBuilder {
+            num_cascades: 1,
+            maximum_distance: 1.6,
+            ..default()
+        }
+        .build(),
     ));
 
     commands.spawn((
@@ -190,7 +221,8 @@ fn raycast_player(
         let Some(hold_empty) = named_entities
             .iter()
             .find_map(|(entity, name)| {
-                (name.as_str() == "Hold").then_some(entity)
+                (name.as_str().starts_with("Hold"))
+                    .then_some(entity)
             })
         else {
             warn!("no entity with name `Hold`");
@@ -296,12 +328,13 @@ fn throw_held_item(
                 *player_linear_velocity,
                 //   LinearVelocity::default(),
                 AngularVelocity::default(),
+                LinearDamping(1.),
                 ExternalImpulse::new(
                     transform
                         .forward()
                         .as_vec3()
                         .with_y(5.)
-                        * Vec3::new(10., 1., 10.),
+                        * Vec3::new(4., 1., 4.),
                 ),
             ));
 

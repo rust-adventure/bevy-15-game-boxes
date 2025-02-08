@@ -1051,6 +1051,10 @@ async fn load_gltf<'a, 'b, 'c>(
     for scene in gltf.scenes() {
         let mut err = None;
         let mut world = World::default();
+        // let types = world.get_resource::<bevy_ecs::reflect::AppTypeRegistry>().unwrap();
+        // for ty in types.read().iter() {
+        //     dbg!(ty);
+        // }
         let mut node_index_to_entity_map = HashMap::new();
         let mut entity_to_skin_index_map =
             EntityHashMap::default();
@@ -1089,6 +1093,7 @@ async fn load_gltf<'a, 'b, 'c>(
             .id();
 
         if let Some(extras) = scene.extras().as_ref() {
+            bevy_utils::tracing::info!(?extras);
             world.entity_mut(world_root_id).insert(
                 GltfSceneExtras {
                     value: extras.get().to_string(),
@@ -1708,6 +1713,7 @@ fn load_node(
     }
 
     if let Some(extras) = gltf_node.extras() {
+        bevy_utils::tracing::info!(?extras, "node");
         node.insert(GltfExtras {
             value: extras.get().to_string(),
         });

@@ -20,6 +20,9 @@ pub struct BMeshExtras {
     #[serde(default)]
     pub target: bool,
     pub material: Option<BMaterial>,
+    pub platform_behavior: Option<PlatformBehavior>,
+    #[serde(default)]
+    pub animation_offset: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,4 +47,10 @@ pub enum BColorReveal {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BMaterial {
     Goal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PlatformBehavior {
+    Rotate90X,
+    Rotate90Y,
 }

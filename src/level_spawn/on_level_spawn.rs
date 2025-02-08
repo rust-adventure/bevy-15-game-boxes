@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use avian3d::prelude::*;
 use bevy::{
     gltf::{
@@ -15,15 +17,10 @@ use crate::{
     blender_types::{
         BCollider, BColorReveal, BMaterial, BMeshExtras,
         BRigidBody,
-    },
-    level_spawn::SpawnPlayerEvent,
-    materials::{
+    }, level_spawn::SpawnPlayerEvent, materials::{
         goal::GoalMaterial,
         uber::{ColorReveal, UberMaterial},
-    },
-    section_texture::DrawSection,
-    Goal, HoldPoint, OriginalTransform,
-    OutOfBoundsBehavior, Target,
+    }, platforms::{AnimationOffsetTimer, Platform, PlatformAnimationOffset}, section_texture::DrawSection, Goal, HoldPoint, OriginalTransform, OutOfBoundsBehavior, Target
 };
 
 pub fn on_level_spawn(
@@ -100,7 +97,7 @@ pub fn on_level_spawn(
             }
         }
 
-        // mesh_extras handling
+        // object extras handling
         if let Ok((_, g_extras)) = gltf_extras.get(entity) {
             let data = serde_json::from_str::<BMeshExtras>(
                 &g_extras.value,
@@ -198,6 +195,13 @@ pub fn on_level_spawn(
                         commands
                             .entity(entity)
                             .insert((Target,));
+                    }
+
+                    if let Some(behavior) = d.platform_behavior {
+                        commands.entity(entity).insert((
+                            Platform,
+                            AnimationOffsetTimer(Timer::new(Duration::from_secs_f32(d.animation_offset), TimerMode::Once))
+                        ));
                     }
                 }
             }

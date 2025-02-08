@@ -4,7 +4,7 @@ use bevy_tnua_avian3d::*;
 use leafwing_input_manager::prelude::*;
 use std::f32::consts::FRAC_PI_4;
 
-use crate::{camera::CameraRig, Player};
+use crate::{camera::CameraRig, Holding, Player};
 
 pub struct ControlsPlugin;
 
@@ -89,7 +89,7 @@ fn target_camera_to_player(
 
 fn apply_controls(
     camera_transform: Single<&Transform, With<Camera3d>>,
-    mut controller: Single<&mut TnuaController>,
+    mut player: Single<(&mut TnuaController, &Holding)>,
     action_state: Single<
         &ActionState<Action>,
         With<Player>,
@@ -110,6 +110,8 @@ fn apply_controls(
         Quat::from_rotation_y(-camera_rig.yaw)
             * Quat::from_rotation_x(camera_rig.pitch)
             * Vec3::Z;
+
+    let (mut controller, holding) = player.into_inner();
 
     // Feed the basis every frame. Even if the player
     // doesn't move - just use `desired_velocity:
@@ -145,7 +147,12 @@ fn apply_controls(
         controller.action(TnuaBuiltinJump {
             // The height is the only mandatory field of the
             // jump button.
-            height: 4.0,
+            height: if holding.0.is_some() {
+                2.0
+            }else {
+                4.0
+            },
+            shorten_extra_gravity: 120.,
             // `TnuaBuiltinJump` also has customization
             // fields with sensible defaults.
             ..default()

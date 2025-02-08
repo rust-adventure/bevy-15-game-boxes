@@ -4,6 +4,7 @@ pub mod controls;
 pub mod dev;
 pub mod level_spawn;
 pub mod materials;
+pub mod platforms;
 pub mod post_process;
 pub mod section_texture;
 pub mod test_gltf_extras_components;
@@ -38,7 +39,7 @@ impl Plugin for BoxesGamePlugin {
                 >| {
                     warn!("running crate despawn");
                     commands.insert_resource(CurrentLevel(
-                        "level.001".to_string(),
+                        "level.003".to_string(),
                     ));
                     next_state.set(LevelState::Loading);
                     // let event = trigger.event();
