@@ -6,17 +6,30 @@ use bevy::{
     },
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
+
+use crate::blender_types::PlatformBehavior;
 
 pub struct PlatformsPlugin;
 
 impl Plugin for PlatformsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(setup_animated_platform)
-            .add_systems(
-                Update,
+        app.add_systems(
+            Update,
+            (
                 tick_animation_offset_timer,
-            );
+                setup_animation_platforms,
+            ),
+        );
     }
+}
+
+#[derive(
+    Debug, Serialize, Deserialize, Component, PartialEq, Eq,
+)]
+pub enum StartEnd {
+    Start,
+    End,
 }
 
 #[derive(Component)]
@@ -36,61 +49,187 @@ enum RotationType {
     Continuous { speed: i32 },
 }
 
-fn setup_animated_platform(
-    trigger: Trigger<OnAdd, Platform>,
+#[derive(Component)]
+struct Processed;
+
+fn setup_animation_platforms(
+    query: Query<
+        (Entity, &PlatformBehavior, &Parent),
+        (With<Platform>, Without<Processed>),
+    >,
     mut commands: Commands,
     mut animations: ResMut<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
-    platforms: Query<&RotationType, With<Platform>>,
     timers: Query<&AnimationOffsetTimer>,
+    children: Query<&Children>,
+    start_ends: Query<(&StartEnd, &Transform)>,
 ) {
-    let platform_target_id = AnimationTargetId::from_name(
-        &Name::new("Platform"),
-    );
+    for (entity, behavior, parent) in &query {
+        match behavior {
+            PlatformBehavior::Rotate90X => {
+                let platform_target_id =
+                    AnimationTargetId::from_name(
+                        &Name::new("Platform"),
+                    );
 
-    let mut animation = AnimationClip::default();
+                let mut animation =
+                    AnimationClip::default();
 
-    let rotation_curve = EasingCurve::new(
-        Quat::IDENTITY,
-        Quat::from_rotation_z(FRAC_PI_2),
-        EaseFunction::ElasticInOut,
-    )
-    .reparametrize_linear(interval(0.0, 4.0).unwrap())
-    .expect("this curve has bounded domain, so this should never fail");
+                let rotation_curve = EasingCurve::new(
+                    Quat::IDENTITY,
+                    Quat::from_rotation_z(FRAC_PI_2),
+                    EaseFunction::ElasticInOut,
+                )
+                .reparametrize_linear(interval(0.0, 4.0).unwrap())
+                .expect("this curve has bounded domain, so this should never fail");
 
-    animation.add_curve_to_target(
-        platform_target_id,
-        AnimatableCurve::new(
-            animated_field!(Transform::rotation),
-            rotation_curve,
-        ),
-    );
+                animation.add_curve_to_target(
+                    platform_target_id,
+                    AnimatableCurve::new(
+                        animated_field!(
+                            Transform::rotation
+                        ),
+                        rotation_curve,
+                    ),
+                );
 
-    let (graph, animation_index) =
-        AnimationGraph::from_clip(
-            animations.add(animation),
-        );
-    dbg!(animation_index);
+                let (graph, animation_index) =
+                    AnimationGraph::from_clip(
+                        animations.add(animation),
+                    );
 
-    // Create the animation player, and set it to repeat
-    let mut player = AnimationPlayer::default();
+                // Create the animation player, and set it to repeat
+                let mut player = AnimationPlayer::default();
 
-    // then play now
-    player.play(animation_index).repeat();
+                // then play now
+                player.play(animation_index).repeat();
 
-    // if the entity doesn't have an offset adjustment timer
-    if timers.get(trigger.entity()).is_ok() {
-        player.pause_all();
+                // if the entity doesn't have an offset adjustment timer
+                if timers.get(entity).is_ok() {
+                    player.pause_all();
+                }
+
+                commands.entity(entity).insert((
+                    Processed,
+                    AnimationGraphHandle(graphs.add(graph)),
+                    player,
+                    AnimationTarget {
+                        id: platform_target_id,
+                        player: entity,
+                    },
+                ));
+            }
+            PlatformBehavior::Rotate90Y => todo!(),
+            PlatformBehavior::MoveLinear => {
+                let start = children
+                    .iter_descendants(parent.get())
+                    .find(|e| {
+                        start_ends.get(*e).is_ok_and(|v| {
+                            *v.0 == StartEnd::Start
+                        })
+                    })
+                    .and_then(|e| {
+                        let (_, t) =
+                            start_ends.get(e).unwrap();
+                        Some(t.translation)
+                    });
+                let end = children
+                    .iter_descendants(parent.get())
+                    .find(|e| {
+                        start_ends.get(*e).is_ok_and(|v| {
+                            *v.0 == StartEnd::End
+                        })
+                    })
+                    .and_then(|e| {
+                        let (_, t) =
+                            start_ends.get(e).unwrap();
+                        Some(t.translation)
+                    });
+                let (
+                    Some(start_transform),
+                    Some(end_transform),
+                ) = (start, end)
+                else {
+                    continue;
+                };
+
+                let platform_target_id =
+                    AnimationTargetId::from_name(
+                        &Name::new("Platform"),
+                    );
+
+                let mut animation =
+                    AnimationClip::default();
+
+                let hold_end_position_curve =
+                    FunctionCurve::new(
+                        Interval::UNIT,
+                        move |_| end_transform,
+                    );
+                let hold_start_position_curve =
+                    FunctionCurve::new(
+                        Interval::UNIT,
+                        move |_| start_transform,
+                    );
+                let translation_curve = EasingCurve::new(
+                    start_transform.clone(),
+                    end_transform.clone(),
+                    EaseFunction::Linear,
+                )
+                .reparametrize_linear(interval(0.0, 4.0).unwrap())
+                .expect("this curve has bounded domain, so this should never fail");
+
+                animation.add_curve_to_target(
+                    platform_target_id,
+                    AnimatableCurve::new(
+                        animated_field!(
+                            Transform::translation
+                        ),
+                        translation_curve
+                            .clone()
+                            .chain(hold_end_position_curve)
+                            .unwrap()
+                            .chain(
+                                translation_curve
+                                    .reverse()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .chain(
+                                hold_start_position_curve,
+                            )
+                            .unwrap(),
+                    ),
+                );
+
+                let (graph, animation_index) =
+                    AnimationGraph::from_clip(
+                        animations.add(animation),
+                    );
+
+                // Create the animation player, and set it to repeat
+                let mut player = AnimationPlayer::default();
+
+                // then play now
+                player.play(animation_index).repeat();
+
+                // if the entity doesn't have an offset adjustment timer
+                if timers.get(entity).is_ok() {
+                    player.pause_all();
+                }
+
+                commands.entity(entity).insert((
+                    Processed,
+                    AnimationGraphHandle(graphs.add(graph)),
+                    player,
+                    AnimationTarget {
+                        id: platform_target_id,
+                        player: entity,
+                    },
+                ));
+            }
+        };
     }
-
-    commands.entity(trigger.entity()).insert((
-        AnimationGraphHandle(graphs.add(graph)),
-        player,
-        AnimationTarget {
-            id: platform_target_id,
-            player: trigger.entity(),
-        },
-    ));
 }
 
 #[derive(Component)]
@@ -106,9 +245,7 @@ fn tick_animation_offset_timer(
     time: Res<Time>,
 ) {
     for (entity, mut player, mut timer) in &mut timers {
-        info!(?entity, "timer tick");
         if timer.0.tick(time.delta()).just_finished() {
-            info!("ticked");
             player.resume_all(); //play(1.into()).repeat();
             commands
                 .entity(entity)

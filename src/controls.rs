@@ -70,7 +70,7 @@ fn handle_pantilt(
         action_state.axis_pair(&Action::PanTilt);
 
     camera_rig.yaw += axis_pair.x / 90.;
-    camera_rig.pitch += axis_pair.y / 90.;
+    camera_rig.pitch -= axis_pair.y / 90.;
     camera_rig.pitch =
         camera_rig.pitch.clamp(-FRAC_PI_4, 0.);
 }

@@ -1,8 +1,8 @@
 // use avian3d::prelude::RigidBody;
-use bevy::math::Vec3;
+use bevy::{math::Vec3, prelude::Component};
 use serde::{Deserialize, Serialize};
 
-use crate::OutOfBoundsBehavior;
+use crate::{platforms::StartEnd, OutOfBoundsBehavior};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BMeshExtras {
@@ -21,6 +21,7 @@ pub struct BMeshExtras {
     pub target: bool,
     pub material: Option<BMaterial>,
     pub platform_behavior: Option<PlatformBehavior>,
+    pub start_end: Option<StartEnd>,
     #[serde(default)]
     pub animation_offset: f32,
 }
@@ -49,8 +50,9 @@ pub enum BMaterial {
     Goal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Component)]
 pub enum PlatformBehavior {
     Rotate90X,
     Rotate90Y,
+    MoveLinear,
 }

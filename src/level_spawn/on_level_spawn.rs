@@ -16,7 +16,7 @@ use bevy::{
 use crate::{
     blender_types::{
         BCollider, BColorReveal, BMaterial, BMeshExtras,
-        BRigidBody,
+        BRigidBody, PlatformBehavior,
     }, level_spawn::SpawnPlayerEvent, materials::{
         goal::GoalMaterial,
         uber::{ColorReveal, UberMaterial},
@@ -197,12 +197,20 @@ pub fn on_level_spawn(
                             .insert((Target,));
                     }
 
+                    if let Some(start_end) = d.start_end {
+                        commands.entity(entity).insert(
+                            start_end
+                        );
+                    }
+
                     if let Some(behavior) = d.platform_behavior {
                         commands.entity(entity).insert((
                             Platform,
-                            AnimationOffsetTimer(Timer::new(Duration::from_secs_f32(d.animation_offset), TimerMode::Once))
+                            AnimationOffsetTimer(Timer::new(Duration::from_secs_f32(d.animation_offset), TimerMode::Once)),
+                            behavior
                         ));
                     }
+
                 }
             }
         }
