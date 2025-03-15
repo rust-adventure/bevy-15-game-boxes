@@ -1,8 +1,14 @@
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::{
+    any::TypeId,
+    f32::consts::{FRAC_PI_2, PI},
+};
 
+use avian3d::prelude::Rotation;
 use bevy::{
     animation::{
-        animated_field, AnimationTarget, AnimationTargetId,
+        animated_field, AnimationEntityMut,
+        AnimationEvaluationError, AnimationTarget,
+        AnimationTargetId,
     },
     prelude::*,
 };
@@ -52,6 +58,9 @@ enum RotationType {
 #[derive(Component)]
 struct Processed;
 
+// fn rotate_platforms(query: Query<>) {
+
+// }
 fn setup_animation_platforms(
     query: Query<
         (Entity, &PlatformBehavior, &Parent),
@@ -86,9 +95,10 @@ fn setup_animation_platforms(
                 animation.add_curve_to_target(
                     platform_target_id,
                     AnimatableCurve::new(
-                        animated_field!(
-                            Transform::rotation
-                        ),
+                        // animated_field!(
+                        //     Transform::rotation
+                        // )
+                        RotationProperty,
                         rotation_curve,
                     ),
                 );
@@ -251,5 +261,33 @@ fn tick_animation_offset_timer(
                 .entity(entity)
                 .remove::<AnimationOffsetTimer>();
         }
+    }
+}
+
+#[derive(Reflect, Clone)]
+struct RotationProperty;
+
+impl AnimatableProperty for RotationProperty {
+    type Property = Quat;
+    fn get_mut<'a>(
+        &self,
+        entity: &'a mut AnimationEntityMut,
+    ) -> Result<
+        &'a mut Self::Property,
+        AnimationEvaluationError,
+    > {
+        let component = entity
+           .get_mut::<Rotation>()
+           .ok_or(
+                AnimationEvaluationError::ComponentNotPresent(
+                    TypeId::of::<Rotation>()
+               )
+            )?
+            .into_inner();
+        Ok(&mut component.0)
+    }
+
+    fn evaluator_id(&self) -> EvaluatorId {
+        EvaluatorId::Type(TypeId::of::<Self>())
     }
 }

@@ -43,7 +43,8 @@ impl Plugin for BoxesGamePlugin {
                         "level.003".to_string(),
                     ));
                     next_state.set(LevelState::Loading);
-                    // let event = trigger.event();
+                    // let event =
+                    // trigger.event();
                     // commands
                     //     .entity(event.target)
                     //     .despawn_recursive();
@@ -157,9 +158,13 @@ fn respawn_important_stuff(
                                 ref mut camera_rig,
                             ) = camera_rig
                             {
-                                // get the rotation of the spawn point empty
-                                // and store it in the camera_rig yaw so that the
-                                // player faces the right direction when spawned
+                                // get the rotation of the
+                                // spawn point empty
+                                // and store it in the
+                                // camera_rig yaw so that
+                                // the
+                                // player faces the right
+                                // direction when spawned
                                 camera_rig.yaw = transform
                                     .0
                                     .compute_transform()
@@ -167,7 +172,9 @@ fn respawn_important_stuff(
                                     .to_euler(EulerRot::XYZ)
                                     .1;
                             } else {
-                                warn!("Tried to respawn player with no camera rig");
+                                warn!(
+                                    "Tried to respawn player with no camera rig"
+                                );
                             }
                         }
                     }
@@ -175,7 +182,9 @@ fn respawn_important_stuff(
                         OutOfBoundsBehavior::Respawn,
                         None,
                     ) => {
-                        error!("OutOfBoundsBehavior::Respawn with no OriginalTransform; can not respawn");
+                        error!(
+                            "OutOfBoundsBehavior::Respawn with no OriginalTransform; can not respawn"
+                        );
                     }
                     (OutOfBoundsBehavior::Despawn, _) => {
                         commands
@@ -212,8 +221,9 @@ fn detect_goal_events(
     targets: Query<&Target>,
     mut commands: Commands,
 ) {
-    // TODO: build up unique GoalEvents and send one GoalEvent per pair
-    // this will fix a panic in the GoalEvent observer which tries to
+    // TODO: build up unique GoalEvents and send one
+    // GoalEvent per pair this will fix a panic in
+    // the GoalEvent observer which tries to
     // despawn an already-despawned entity
     for Collision(contacts) in collision_event_reader.read()
     {

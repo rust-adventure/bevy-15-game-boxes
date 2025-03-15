@@ -207,7 +207,9 @@ pub fn on_level_spawn(
                         commands.entity(entity).insert((
                             Platform,
                             AnimationOffsetTimer(Timer::new(Duration::from_secs_f32(d.animation_offset), TimerMode::Once)),
-                            behavior
+                            behavior,
+                            RigidBody::Kinematic,
+                            // AngularVelocity(Vec3::new(0.,0.,0.5))
                         ));
                     }
 
