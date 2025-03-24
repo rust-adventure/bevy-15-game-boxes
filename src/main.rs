@@ -9,6 +9,9 @@ use bevy::{
     render::view::RenderLayers,
 };
 use bevy_15_game::{
+    AppState, AudioAssets, BoxesGamePlugin, GltfAssets,
+    HoldPoint, Holding, OutOfBoundsMarker, Player,
+    TextureAssets,
     camera::{CameraPlugin, PlayerCamera},
     controls::{Action, ControlsPlugin},
     dev::DevPlugin,
@@ -19,18 +22,17 @@ use bevy_15_game::{
         PostProcessPlugin, PostProcessSettings,
     },
     section_texture::{
-        DrawSection, SectionTexturePhasePlugin,
-        SectionsPrepass, ATTRIBUTE_SECTION_COLOR,
+        ATTRIBUTE_SECTION_COLOR, DrawSection,
+        SectionTexturePhasePlugin, SectionsPrepass,
     },
     test_gltf_extras_components::TestGltfExtrasComponentsPlugin,
-    track_fake_long_task, AppState, AudioAssets,
-    BoxesGamePlugin, GltfAssets, HoldPoint, Holding,
-    OutOfBoundsMarker, Player, TextureAssets,
+    track_fake_long_task,
 };
 use bevy_asset_loader::loading_state::{
-    config::ConfigureLoadingState, LoadingState,
-    LoadingStateAppExt, LoadingStateSet,
+    LoadingState, LoadingStateAppExt, LoadingStateSet,
+    config::ConfigureLoadingState,
 };
+use bevy_skein::SkeinPlugin;
 use iyes_progress::{
     ProgressPlugin, ProgressReturningSystem,
     ProgressTracker,
@@ -42,9 +44,8 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(SKY_100.into()))
         .add_plugins((
-            bevy::remote::RemotePlugin::default(),
-            bevy::remote::http::RemoteHttpPlugin::default(),
-            DefaultPlugins .set(
+            SkeinPlugin::default(),
+            DefaultPlugins.set(
                 GltfPlugin::default()
                     // Map a custom glTF attribute name to a `MeshVertexAttribute`.
                     .add_custom_vertex_attribute(
@@ -248,7 +249,9 @@ fn raycast_player(
             })
             .map(|transform| transform.translation)
         else {
-            warn!("no HoldPoint entity in Interactable entity tree");
+            warn!(
+                "no HoldPoint entity in Interactable entity tree"
+            );
             return;
         };
 

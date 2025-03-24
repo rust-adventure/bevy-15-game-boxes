@@ -6,28 +6,41 @@ use std::{
 use avian3d::prelude::Rotation;
 use bevy::{
     animation::{
-        animated_field, AnimationEntityMut,
-        AnimationEvaluationError, AnimationTarget,
-        AnimationTargetId,
+        AnimationEntityMut, AnimationEvaluationError,
+        AnimationTarget, AnimationTargetId, animated_field,
     },
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::blender_types::PlatformBehavior;
-
 pub struct PlatformsPlugin;
 
 impl Plugin for PlatformsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                tick_animation_offset_timer,
-                setup_animation_platforms,
-            ),
-        );
+        app.register_type::<Platform>()
+            .register_type::<PlatformBehavior>()
+            .register_type::<PlatformAnimationOffset>()
+            .register_type::<AnimationOffsetTimer>()
+            .add_systems(
+                Update,
+                (
+                    tick_animation_offset_timer,
+                    setup_animation_platforms,
+                ),
+            );
     }
+}
+
+#[derive(Debug, Component, Reflect, Default)]
+#[reflect(Component, Default)]
+pub enum PlatformBehavior {
+    #[default]
+    Rotate90X,
+    Rotate90Y,
+    MoveLinear {
+        start: Vec3,
+        end: Vec3,
+    },
 }
 
 #[derive(
@@ -38,18 +51,22 @@ pub enum StartEnd {
     End,
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct Platform;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct PlatformAnimationOffset(pub f32);
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 struct Rotate {
     axis: Vec2,
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 enum RotationType {
     Stepped { step_count: u32 },
     Continuous { speed: i32 },
@@ -108,13 +125,15 @@ fn setup_animation_platforms(
                         animations.add(animation),
                     );
 
-                // Create the animation player, and set it to repeat
+                // Create the animation player, and set it
+                // to repeat
                 let mut player = AnimationPlayer::default();
 
                 // then play now
                 player.play(animation_index).repeat();
 
-                // if the entity doesn't have an offset adjustment timer
+                // if the entity doesn't have an offset
+                // adjustment timer
                 if timers.get(entity).is_ok() {
                     player.pause_all();
                 }
@@ -130,38 +149,9 @@ fn setup_animation_platforms(
                 ));
             }
             PlatformBehavior::Rotate90Y => todo!(),
-            PlatformBehavior::MoveLinear => {
-                let start = children
-                    .iter_descendants(parent.get())
-                    .find(|e| {
-                        start_ends.get(*e).is_ok_and(|v| {
-                            *v.0 == StartEnd::Start
-                        })
-                    })
-                    .and_then(|e| {
-                        let (_, t) =
-                            start_ends.get(e).unwrap();
-                        Some(t.translation)
-                    });
-                let end = children
-                    .iter_descendants(parent.get())
-                    .find(|e| {
-                        start_ends.get(*e).is_ok_and(|v| {
-                            *v.0 == StartEnd::End
-                        })
-                    })
-                    .and_then(|e| {
-                        let (_, t) =
-                            start_ends.get(e).unwrap();
-                        Some(t.translation)
-                    });
-                let (
-                    Some(start_transform),
-                    Some(end_transform),
-                ) = (start, end)
-                else {
-                    continue;
-                };
+            PlatformBehavior::MoveLinear { start, end } => {
+                let start = start.clone();
+                let end = end.clone();
 
                 let platform_target_id =
                     AnimationTargetId::from_name(
@@ -174,16 +164,16 @@ fn setup_animation_platforms(
                 let hold_end_position_curve =
                     FunctionCurve::new(
                         Interval::UNIT,
-                        move |_| end_transform,
+                        move |_| end,
                     );
                 let hold_start_position_curve =
                     FunctionCurve::new(
                         Interval::UNIT,
-                        move |_| start_transform,
+                        move |_| start,
                     );
                 let translation_curve = EasingCurve::new(
-                    start_transform.clone(),
-                    end_transform.clone(),
+                    start.clone(),
+                    end.clone(),
                     EaseFunction::Linear,
                 )
                 .reparametrize_linear(interval(0.0, 4.0).unwrap())
@@ -217,13 +207,15 @@ fn setup_animation_platforms(
                         animations.add(animation),
                     );
 
-                // Create the animation player, and set it to repeat
+                // Create the animation player, and set it
+                // to repeat
                 let mut player = AnimationPlayer::default();
 
                 // then play now
                 player.play(animation_index).repeat();
 
-                // if the entity doesn't have an offset adjustment timer
+                // if the entity doesn't have an offset
+                // adjustment timer
                 if timers.get(entity).is_ok() {
                     player.pause_all();
                 }
@@ -242,7 +234,8 @@ fn setup_animation_platforms(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct AnimationOffsetTimer(pub Timer);
 
 fn tick_animation_offset_timer(

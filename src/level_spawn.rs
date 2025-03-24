@@ -5,22 +5,23 @@ use bevy::{prelude::*, render::view::RenderLayers};
 use bevy_tnua::prelude::TnuaController;
 use bevy_tnua_avian3d::TnuaAvian3dSensorShape;
 use leafwing_input_manager::{
-    prelude::*, InputManagerBundle,
+    InputManagerBundle, prelude::*,
 };
 
 mod on_level_spawn;
 
 use crate::{
-    camera::CameraRig, controls::Action, AppState,
-    GltfAssets, Holding, OriginalTransform,
-    OutOfBoundsBehavior, Player,
+    AppState, GltfAssets, Holding, OriginalTransform,
+    OutOfBoundsBehavior, Player, camera::CameraRig,
+    controls::Action,
 };
 
 pub struct PlayerSpawnPlugin;
 
 impl Plugin for PlayerSpawnPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<SpawnPlayerEvent>()
+        app.register_type::<SpawnPoint>()
+            .add_event::<SpawnPlayerEvent>()
             .add_sub_state::<LevelState>()
             .enable_state_scoped_entities::<LevelState>()
             .add_observer(on_spawn_player)
@@ -57,13 +58,18 @@ pub enum LevelState {
     Win,
 }
 
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+struct SpawnPoint;
+
 fn setup_level(
     mut commands: Commands,
     mut next_state: ResMut<NextState<LevelState>>,
     current_level: Option<Res<CurrentLevel>>,
 ) {
-    // if there is already a CurrentLevel to go to, go to
-    // that level, otherwise go to "the default level"
+    // if there is already a CurrentLevel to go to, go
+    // to that level, otherwise go to "the default
+    // level"
     if current_level.is_none() {
         commands.insert_resource(CurrentLevel::default());
     };
@@ -153,21 +159,25 @@ fn on_spawn_player(
             Name::new("Character"),
             SceneRoot(character.clone()),
             (
-                // The player character needs to be configured
-                // as a dynamic rigid body of the physics
+                // The player character needs to be
+                // configured as a dynamic
+                // rigid body of the physics
                 // engine.
                 RigidBody::Dynamic,
                 Collider::capsule(0.5, 0.5),
                 // This bundle holds the main components.
                 TnuaController::default(),
-                // A sensor shape is not strictly necessary,
-                // but without it we'll get weird results.
+                // A sensor shape is not strictly
+                // necessary, but without
+                // it we'll get weird results.
                 TnuaAvian3dSensorShape(Collider::cylinder(
                     0.49, 0.0,
                 )),
-                // Tnua can fix the rotation, but the character
-                // will still get rotated before it can do so.
-                // By locking the rotation we can prevent this.
+                // Tnua can fix the rotation, but the
+                // character will still get
+                // rotated before it can do so.
+                // By locking the rotation we can prevent
+                // this.
                 LockedAxes::ROTATION_LOCKED
                     .unlock_rotation_y(),
                 position.clone(),
@@ -181,8 +191,9 @@ fn on_spawn_player(
                 )
                 .with_max_distance(10_000.),
                 // TnuaAnimatingState::<AnimationState>::default(),
-                // Describes how to convert from player inputs
-                // into those actions
+                // Describes how to convert from player
+                // inputs into those
+                // actions
             ),
             InputManagerBundle::with_map(input_map),
             OriginalTransform(position.into()),

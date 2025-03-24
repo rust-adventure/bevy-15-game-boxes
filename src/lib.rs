@@ -10,9 +10,16 @@ pub mod section_texture;
 pub mod test_gltf_extras_components;
 
 use avian3d::prelude::{
-    AngularVelocity, Collision, LinearVelocity,
+    AngularVelocity, Collision, LinearVelocity, Sensor,
 };
-use bevy::prelude::*;
+use bevy::{
+    ecs::{
+        component::ComponentId, system::SystemState,
+        world::DeferredWorld,
+    },
+    prelude::*,
+    transform::helper,
+};
 use bevy_asset_loader::prelude::*;
 use camera::CameraRig;
 use iyes_progress::Progress;
@@ -25,6 +32,11 @@ impl Plugin for BoxesGamePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GoalEvent>()
             .register_type::<HoldPoint>()
+            .register_type::<OutOfBoundsBehavior>()
+            .register_type::<OutOfBoundsMarker>()
+            .register_type::<Goal>()
+            .register_type::<Player>()
+            .register_type::<Target>()
             .add_systems(
                 Update,
                 (
@@ -32,6 +44,7 @@ impl Plugin for BoxesGamePlugin {
                     detect_goal_events,
                 ),
             )
+            .add_observer(on_add_out_of_bounds_behavior)
             .add_observer(
                 |trigger: Trigger<GoalEvent>,
                  mut commands: Commands,
@@ -59,9 +72,11 @@ pub struct HoldPoint;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
+#[require(Sensor)]
 pub struct Goal;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct Player;
 
 #[derive(
@@ -197,18 +212,45 @@ fn respawn_important_stuff(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct OutOfBoundsMarker;
 
 #[derive(Component)]
 pub struct OriginalTransform(pub GlobalTransform);
 
 #[derive(
-    Debug, Component, Serialize, Deserialize, Clone,
+    Debug, Component, Reflect, Serialize, Deserialize, Clone,
 )]
+#[reflect(Component)]
 pub enum OutOfBoundsBehavior {
     Respawn,
     Despawn,
+}
+
+fn on_add_out_of_bounds_behavior(
+    trigger: Trigger<OnAdd, OutOfBoundsBehavior>,
+    helper: TransformHelper,
+    mut commands: Commands,
+    out_of_bounds: Query<&OutOfBoundsBehavior>,
+) {
+    let Ok(behavior) = out_of_bounds.get(trigger.entity())
+    else {
+        return;
+    };
+
+    match behavior {
+        OutOfBoundsBehavior::Respawn => {
+            let gt = helper
+                .compute_global_transform(trigger.entity())
+                .unwrap();
+
+            commands
+                .entity(trigger.entity())
+                .insert(OriginalTransform(gt));
+        }
+        OutOfBoundsBehavior::Despawn => {}
+    }
 }
 
 #[derive(Component, Reflect)]
