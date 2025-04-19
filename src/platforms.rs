@@ -80,17 +80,15 @@ struct Processed;
 // }
 fn setup_animation_platforms(
     query: Query<
-        (Entity, &PlatformBehavior, &Parent),
+        (Entity, &PlatformBehavior),
         (With<Platform>, Without<Processed>),
     >,
     mut commands: Commands,
     mut animations: ResMut<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
     timers: Query<&AnimationOffsetTimer>,
-    children: Query<&Children>,
-    start_ends: Query<(&StartEnd, &Transform)>,
 ) {
-    for (entity, behavior, parent) in &query {
+    for (entity, behavior) in &query {
         match behavior {
             PlatformBehavior::Rotate90X => {
                 let platform_target_id =

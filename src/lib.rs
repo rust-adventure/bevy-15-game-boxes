@@ -1,4 +1,3 @@
-pub mod blender_types;
 pub mod camera;
 pub mod controls;
 pub mod dev;
@@ -12,14 +11,7 @@ pub mod test_gltf_extras_components;
 use avian3d::prelude::{
     AngularVelocity, Collision, LinearVelocity, Sensor,
 };
-use bevy::{
-    ecs::{
-        component::ComponentId, system::SystemState,
-        world::DeferredWorld,
-    },
-    prelude::*,
-    transform::helper,
-};
+use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use camera::CameraRig;
 use iyes_progress::Progress;
@@ -46,21 +38,36 @@ impl Plugin for BoxesGamePlugin {
             )
             .add_observer(on_add_out_of_bounds_behavior)
             .add_observer(
-                |trigger: Trigger<GoalEvent>,
+                |_trigger: Trigger<GoalEvent>,
                  mut commands: Commands,
                  mut next_state: ResMut<
                     NextState<LevelState>,
-                >| {
-                    warn!("running crate despawn");
-                    commands.insert_resource(CurrentLevel(
-                        "level.003".to_string(),
-                    ));
-                    next_state.set(LevelState::Loading);
-                    // let event =
-                    // trigger.event();
-                    // commands
-                    //     .entity(event.target)
-                    //     .despawn_recursive();
+                >,
+                current_level: Res<CurrentLevel>
+                | {
+                    let levels = [
+                        "level.002",
+                        "level.005",
+                        "level.006",
+                    ];
+                    let next_level = levels.windows(2).find_map(|levels| {
+                        let level_id = levels[0];
+                        let next_level = levels[1];
+                        (*level_id == current_level.0).then_some(next_level)
+                    });
+
+                    match next_level {
+                        Some(level_id) => {
+                            commands.insert_resource(CurrentLevel(
+                                level_id.to_string(),
+                            ));
+                            next_state.set(LevelState::Loading);
+                        },
+                        None => {
+                            info!("YOU WIN! (for now)");
+                        },
+                    }
+                 
                 },
             );
     }
